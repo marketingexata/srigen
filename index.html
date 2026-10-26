@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SriGen</title>
+
+<!-- =========================================================
+     1. STYLE
+     Semua warna ada di variabel :root (terang) dan [data-theme="dark"].
+     Ganti aksen tosca cukup di --accent.
+========================================================== -->
+<style>
+:root{
+  --bg:#ffffff; --surface:#f6fafa; --line:#dbe6e6; --text:#14282b; --muted:#546a6d;
+  --accent:#0f9d9a; --accent-ink:#ffffff; --accent-soft:#e0f5f4; --danger:#b3382c;
+  --serif:Georgia,"Times New Roman",serif;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+[data-theme="dark"]{
+  --bg:#0e1819; --surface:#152325; --line:#264043; --text:#eaf5f5; --muted:#9bb5b7;
+  --accent:#2cc4c0; --accent-ink:#06201f; --accent-soft:#12383a; --danger:#ff8a7a;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.6 var(--sans);transition:background .25s,color .25s}
+h1,h2{font-family:var(--serif);font-weight:700;margin:0}
+button,textarea,input{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* ---------- Layout ---------- */
+.wrap{max-width:1040px;margin:0 auto;padding:24px 20px 64px}
+header{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;padding-bottom:20px;border-bottom:2px solid var(--accent);margin-bottom:32px}
+header h1{font-size:clamp(1.6rem,4vw,2.4rem);line-height:1.15}
+header p{margin:6px 0 0;color:var(--muted);max-width:52ch}
+.grid{display:grid;grid-template-columns:1fr;gap:32px}
+@media(min-width:900px){.grid{grid-template-columns:1.1fr .9fr;align-items:start}.sticky{position:sticky;top:20px}}
+section{margin-bottom:28px}
+h2{font-size:1.25rem;margin-bottom:10px}
+.hint{color:var(--muted);font-size:.9rem;margin:0 0 12px}
+
+/* ---------- Komponen ---------- */
+.btn{border:1px solid var(--line);background:var(--surface);padding:10px 16px;border-radius:8px;cursor:pointer;transition:transform .15s,background .2s,border-color .2s}
+.btn:hover{border-color:var(--accent)}
+.btn:active{transform:scale(.97)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
+.btn.danger{color:var(--danger)}
+.btn.small{padding:6px 12px;font-size:.88rem}
+.row{display:flex;flex-wrap:wrap;gap:10px}
+
+.brands{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+@media(min-width:600px){.brands{grid-template-columns:repeat(4,1fr)}}
+.brand{padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);cursor:pointer;text-align:center;font-weight:600;transition:all .2s}
+.brand[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+
+.options{display:grid;gap:8px}
+.opt{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--line);border-radius:8px;cursor:pointer;transition:all .2s}
+.opt:hover{border-color:var(--accent)}
+.opt:has(input:checked){background:var(--accent-soft);border-color:var(--accent)}
+.opt input{margin-top:5px;accent-color:var(--accent)}
+textarea{width:100%;min-height:84px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);resize:vertical}
+textarea:focus{border-color:var(--accent)}
+.custom{margin-top:8px}
+
+#output{min-height:260px;font-size:.88rem;font-family:ui-monospace,Menlo,Consolas,monospace;background:var(--surface)}
+.status{min-height:1.4em;color:var(--accent);font-size:.9rem;margin:8px 0 0}
+
+select{width:100%;margin-top:8px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--text);cursor:pointer}
+select:focus,input[type=text]:focus{border-color:var(--accent)}
+input[type=text]{width:100%;margin-top:8px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
+.hidden{display:none}
+
+/* ---------- Data tersimpan ---------- */
+.saved-item{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+.saved-item strong{display:block}
+.saved-item small{color:var(--muted)}
+.empty{color:var(--muted);font-style:italic}
+
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+
+<body>
+<div class="wrap">
+
+<!-- =========================================================
+     2. HEADER + TOMBOL MODE TERANG/GELAP
+========================================================== -->
+<header>
+  <div>
+    <h1>SriGen</h1>
+    <p>Bikin prompt naskah atau script langsung jadi dan siap ditempel ke ChatGPT.</p>
+  </div>
+  <button class="btn small" id="themeBtn" type="button" aria-label="Ganti mode terang atau gelap">Mode gelap</button>
+</header>
+
+<div class="grid">
+
+  <!-- =======================================================
+       3. KOLOM KIRI: PARAMETER
+  ======================================================== -->
+  <main>
+    <section>
+      <h2>1. Divisi</h2>
+      <div class="brands" id="brands"></div>
+    </section>
+
+    <section>
+      <h2>2. Masalah</h2>
+      <p class="hint">Tulis masalahnya sendiri, atau pilih contoh di bawah lalu ubah sesuai kebutuhan.</p>
+      <textarea id="problemText" placeholder="Tulis masalah di sini"></textarea>
+      <select id="problemSel" aria-label="Contoh masalah"></select>
+    </section>
+
+    <section>
+      <h2>3. Solusi</h2>
+      <p class="hint">Tulis solusinya sendiri, atau pilih contoh di bawah lalu ubah sesuai kebutuhan.</p>
+      <textarea id="solutionText" placeholder="Tulis solusi di sini"></textarea>
+      <select id="solutionSel" aria-label="Contoh solusi"></select>
+    </section>
+
+    <section>
+      <h2>4. Gaya bahasa</h2>
+      <p class="hint">Boleh dikosongkan. Kalau kosong, gaya mengikuti karakter brand.</p>
+      <select id="styleSel" aria-label="Gaya bahasa" style="margin-top:0"></select>
+      <input type="text" id="styleCustom" class="hidden" placeholder="Tulis gaya bahasa sendiri">
+    </section>
+
+    <section>
+      <h2>5. Jenis script <small style="font-weight:400;color:var(--muted)">(boleh dikosongkan)</small></h2>
+      <select id="scriptSel" aria-label="Jenis script" style="margin-top:0"></select>
+      <p class="hint" id="scriptHint" style="margin-top:8px"></p>
+    </section>
+
+    <section>
+      <h2>6. Arahan tambahan <small style="font-weight:400;color:var(--muted)">(boleh kosong)</small></h2>
+      <textarea id="extra" placeholder="Contoh: durasi lebih pendek, hasil rinci, kata wajib"></textarea>
+    </section>
+
+    <div class="row">
+      <button class="btn primary" id="buildBtn" type="button">Buat prompt</button>
+      <button class="btn" id="saveBtn" type="button">Simpan data</button>
+      <button class="btn danger" id="resetBtn" type="button">Reset semua</button>
+    </div>
+    <p class="status" id="status" role="status"></p>
+  </main>
+
+  <!-- =======================================================
+       4. KOLOM KANAN: HASIL PROMPT + DATA TERSIMPAN
+  ======================================================== -->
+  <aside class="sticky">
+    <section>
+      <h2>Prompt siap pakai</h2>
+      <textarea id="output" placeholder="Klik &quot;Buat prompt&quot; untuk melihat hasilnya di sini."></textarea>
+      <div class="row" style="margin-top:10px">
+        <button class="btn primary" id="copyBtn" type="button">Salin prompt</button>
+      </div>
+    </section>
+
+    <section>
+      <h2>Data tersimpan</h2>
+      <div id="savedList"></div>
+    </section>
+  </aside>
+
+</div>
+</div>
+
+<!-- =========================================================
+     5. MASTER PROMPT
+     Edit isi prompt di sini. Penanda yang diganti otomatis:
+     {{BRAND}}  {{MASALAH}}  {{SOLUSI}}  {{GAYA}}  {{JENIS}}  {{ARAHAN}}
+========================================================== -->
+<script>
+const MASTER_PROMPT = `PERAN DAN TUJUAN
+Kamu adalah penulis naskah video pendek, analis brand, dan editor bahasa Indonesia. Buat naskah yang natural saat diucapkan untuk empat brand berikut, dengan panjang wajib 66-75 kata per naskah dan sasaran durasi 30 detik.
+
+Layani pengguna awam dan pengelola menggunakan aturan yang sama. Pengguna cukup memberikan Masalah dan Solusi. Semua arahan lain bersifat opsional dan boleh disampaikan dengan bahasa sehari-hari. Jangan mewajibkan pemilihan peran atau meminta seluruh parameter diisi.
+
+PENGETAHUAN DASAR BRAND
+Sumber: materi resmi dari pengelola (banner EXATA x JP SMART SIM, X-banner JLCT x J-Expert 2026, brosur JP SMART SIM, company profile EXATA, JLCT, dan Japanindo Travel). Klaim hanya boleh memakai fakta yang tertulis di bagian ini dan di DATA BRAND TAMBAHAN. Brand yang tampil berdampingan di satu materi tidak berarti satu kepemilikan; jangan menyimpulkannya. Nama orang/tim internal tidak dipakai di naskah.
+
+1. EXATA Indonesia
+   Layanan: konsultan jasa pendampingan pengurusan nenkin (dana pensiun Jepang) dan gensen (pajak penghasilan yang dipotong di Jepang). Jangan menjanjikan nominal atau kepastian pencairan.
+   Audiens: kenshusei/jishusei/engineer sebagai klien perorangan, serta LPK/SO sebagai mitra yang mengurus bersama siswa/alumninya.
+   Pesan inti: kemudahan, pendampingan, dan kejelasan proses. Tiga nilai: Mudah, Cepat, Terpercaya.
+   Nada awal: ramah, tenang, dan meyakinkan.
+   Fakta materi: syarat pengurusan simpel dan bisa dikonsultasikan; alur responsif; konsultasi ramah dan pendampingan dari awal sampai selesai; proses online, transparan, dengan update berkala; tim berpengalaman dan legal. Berdiri 2015, dirintis seorang eks kenshusei yang pernah magang 3 tahun di Jepang. Berafiliasi dengan Exata pusat di Hamamatsu, Jepang. Per 2026 sudah dipercaya lebih dari 70 ribu kenshusei dan 110 LPK/SO (dikonfirmasi pengelola). Tagline: asisten pribadi dalam pengurusan gensen dan nenkin.
+
+2. JP SMART SIM (kolaborasi Japanindo Travel Connection, powered by JP Smart)
+   Layanan: kartu telepon dan internet Jepang yang diterima di Indonesia dan langsung aktif setibanya di Jepang. Produk: CALL SIM (internet, SMS, telepon), DATA SIM (internet dan SMS, tanpa telepon), dan eSIM (kartu internet untuk wisata; harga dan ketentuan eSIM tidak tercantum, jangan disebut).
+   Audiens: calon kenshusei/kenshusei sebagai pengguna; LPK/SO sebagai pihak yang memfasilitasi persiapan siswa ("toolkits pra-keberangkatan"); wisatawan hanya untuk eSIM.
+   Pesan inti: kesiapan komunikasi dan aktivitas sehari-hari di Jepang.
+   Nada awal: hangat, praktis, dan bersahabat.
+   Fakta materi: jaringan NTT DOCOMO; kompatibel dengan HP dari Indonesia; tagihan bulanan bisa dibayar tunai di konbini (7 Eleven, Lawson, Family Mart, Mini Stop, dll); CALL SIM dan DATA SIM sama-sama bisa dipakai untuk registrasi perbankan/mobile banking; paket bisa diganti sesuai kebutuhan; berhenti berlangganan tanpa denda dengan konfirmasi ke Customer Service; layanan berbahasa Indonesia. Kegunaan bagi kenshusei: menghubungi keluarga, LPK, dan perusahaan; registrasi bank dan jasa kirim uang ke Indonesia; menelepon kaisha, taksi, polisi, kantor pajak, dan pos; menerima informasi darurat seperti gempa dan tsunami; belanja online. Manfaat mengikuti jenis produk; kemampuan telepon hanya ada di CALL SIM. Survei internal terhadap klien kenshusei menunjukkan 80% membutuhkan nomor telepon Jepang, untuk menghubungi kumiai, perusahaan, dan pihak LPK serta untuk membuat rekening bank. Sebut sebagai “berdasarkan survei internal”, bukan klaim umum atau hasil riset independen.
+
+3. JLCT Indonesia (Japanese Language Capability Test)
+   Layanan: tes kemampuan bahasa Jepang umum JCT1-JCT5 dan tes khusus JLCT KAIGO, bisa diselenggarakan di LPK atau kota peserta.
+   Audiens: peserta tes (siswa LPK, siswa SMK, mahasiswa), LPK/SO, sekolah, kampus, dan calon lembaga mitra.
+   Pesan inti: akses tes dan pendaftaran yang mudah sesuai ketentuan penyelenggaraan, tanpa harus menempuh jarak jauh ke kota besar.
+   Nada awal: informatif, jelas, dan profesional.
+   Fakta materi: pemetaan level JCT1-JCT5 setara JLPT N1-N5. JLCT KAIGO satu level, dipetakan setara N4 dan N3 sekaligus. Kegunaan yang tertulis: syarat visa student (Ryugakusei/Nihongo Gakkou) minimal JCT5; persiapan program Ikusei Shurou (LPK/SO membekali siswa minimal setara N5/JCT5); syarat program internship ke Jepang bagi mahasiswa semester 3 atau 4 (setara N4/JCT4); syarat visa magang Kaigo (JLCT KAIGO). Sebut hanya kegunaan yang relevan dengan Solusi dan jangan menyamakan semua kegunaan sertifikat. Jangan mengulang klaim pengakuan pemerintah secara umum.
+   Kemudahan: pendaftaran kolektif lewat PIC LPK; kuota tidak terbatas (daftar minimal 1,5 bulan sebelum tes); tes dilaksanakan 2 bulan sekali (6 kali setahun, di bulan ganjil); hasil tes keluar dalam 4-5 hari (dikonfirmasi pengelola, 2026); konsultasi mudah dan respons cepat; tes di LPK atau kota dengan minimal 50 peserta, pengawas dari tim JLCT, dengan ruang kelas dan sound system untuk ujian listening.
+
+4. J-Expert Recruitment
+   Layanan dalam materi: membantu LPK mendapatkan SDM berbahasa Jepang, termasuk guru bahasa Jepang, penerjemah, staf administrasi/pemberkasan Jepang, dan bidang lain yang membutuhkan skill bahasa Jepang.
+   Audiens utama dalam materi: LPK yang membutuhkan SDM. Audiens kandidat digunakan jika kampanye memang ditujukan kepada pelamar.
+   Talenta yang ditonjolkan: eks kenshusei.
+   Pesan inti: kecocokan kemampuan, pengalaman, dan kebutuhan posisi.
+   Nada awal: profesional, solutif, dan lugas.
+   Fakta materi: seleksi berbasis skill dan culture fit; LPK dapat mengajukan permintaan khusus; level bahasa N4-N1 dan pengalaman kerja di Jepang lebih dari 1 tahun (rentang materi, bukan janji untuk tiap kandidat); ada garansi penggantian kandidat (syarat dan durasinya tidak tercantum, jangan dijabarkan).
+
+DATA BRAND TAMBAHAN, JIKA TERSEDIA
+- Brand bawaan untuk konteks ini: {{BRAND}}
+- Fakta/ketentuan yang dikonfirmasi beserta sumber dan tanggal: ringkasan materi resmi 2026 (tanpa tanggal rinci), rincian di bawah.
+  JP SMART SIM: paket bulanan DATA SIM 3GB ¥1.078 dan 20GB ¥1.848 (50GB tidak tersedia); CALL SIM 3GB ¥1.408, 20GB ¥2.178, 50GB ¥5.038. CALL SIM dan DATA SIM hanya selisih ¥330. Telepon domestik Jepang ¥22 per 30 detik, ditagih di bulan berikutnya; telepon ke Indonesia tidak disarankan karena tarif internasional. Syarat daftar: foto/scan KTP dan paspor, email aktif, isi form registrasi, bayar awal ¥3.300. Agar lanjut setelah masa gratis, pembayaran dilakukan tanggal 25-28 di bulan terakhir gratis. Dukungan Senin-Jumat 10:00-19:00 JST dan Sabtu-Minggu 10:00-18:00 JST.
+  JLCT: biaya JCT3, JCT4, JCT5 IDR 500.000 dan JLCT KAIGO IDR 550.000, tanpa tambahan ADM dan biaya lainnya. Biaya JCT1 dan JCT2 tidak tercantum, jangan disebut.
+- Penawaran aktif, syarat, dan masa berlaku: JP SMART SIM Special Offer bayar awal ¥3.300 dengan data internet gratis 2 bulan pertama di Jepang, kuota sampai 50GB per bulan. Masa berlaku tidak tercantum, maka jangan menyebut batas waktu atau kelangkaan. Pakai hanya bila sesuai Solusi. Penawaran lain tidak ada.
+- Kanal kontak resmi yang boleh disebut: di naskah lisan cukup ajakan umum seperti “Hubungi tim [brand]”. Kanal berikut hanya untuk teks layar bila diminta. EXATA: exataindonesia.com. JP SMART SIM: Instagram dan TikTok jpsmart_id. JLCT: jlct.id. J-Expert: jexpertrecruitment.com dan Instagram @jexpert_recruitment. Nomor WhatsApp berbeda antar materi, jadi jangan menampilkan nomor kecuali pengguna menyebutkannya.
+- Hal yang tidak boleh disebut: klaim superlatif seperti “No. 1” dan “terbaik” (belum dikonfirmasi) serta nomor WhatsApp (berbeda antar materi).
+Data ini dapat disiapkan sekali dan diperbarui saat ada perubahan. Kolom kosong tidak perlu ditanyakan kecuali informasi tersebut menentukan kebenaran inti naskah.
+
+INPUT
+Masalah: {{MASALAH}}
+Solusi: {{SOLUSI}}
+Gaya bahasa: {{GAYA}}
+Jenis script: {{JENIS}}
+Arahan tambahan: {{ARAHAN}}
+
+ARAHAN TAMBAHAN YANG BOLEH DIBERIKAN
+Brand, audiens, tujuan, topik, manfaat yang ditekankan, gaya bahasa, format talent/voice-over/dialog, CTA, jumlah variasi, durasi yang lebih pendek, visual yang tersedia, kata wajib, larangan, serta bentuk hasil ringkas/rinci.
+Jangan tampilkan daftar ini sebagai formulir wajib. Jangan menebak jabatan atau kewenangan orang yang mengirim masukan.
+
+CARA MENENTUKAN PARAMETER
+1. Ambil Masalah, Solusi, dan arahan yang dinyatakan secara jelas. Pertahankan inti masalah dan maksud solusi; rapikan bahasanya bila perlu.
+2. Gunakan arahan eksplisit untuk pilihan kreatif yang dimaksud. Bagian yang tidak diisi mengikuti konteks yang masih berlaku, lalu disimpulkan dari masalah/solusi, kemudian memakai pengaturan awal.
+3. Brand yang disebut jelas diutamakan. Bila belum ada, gunakan brand bawaan jika cocok. Jika masih belum jelas, kenali dari kebutuhan: nenkin/gensen ke EXATA; koneksi/SIM di Jepang ke JP SMART SIM; tes bahasa/sertifikasi ke JLCT; rekrutmen SDM berbahasa Jepang untuk LPK ke J-Expert.
+4. Jika brand yang diminta bertentangan dengan masalah/solusi, atau beberapa brand sama-sama cocok, ajukan satu pertanyaan pilihan singkat. Kata Jepang, murah, mudah, atau bahasa Jepang saja tidak cukup menentukan brand.
+5. Pilih satu audiens dari pihak yang mengalami masalah dan pihak yang perlu mengambil tindakan. Jika keduanya berbeda, jelaskan hubungan itu secara wajar; misalnya masalah siswa dapat menjadi pesan kepada pengelola LPK jika solusi memerlukan keputusan lembaga.
+6. Tentukan satu tujuan, satu pesan utama, satu sudut pembuka, dan satu CTA. Jika solusi berupa penjelasan, utamakan edukasi dan ajakan ringan. Jika berupa layanan, gunakan ajakan konsultasi atau pendaftaran yang sesuai.
+7. Sesuaikan sapaan dan nada dengan audiens serta karakter brand. Untuk individu boleh memakai kamu; untuk lembaga gunakan sapaan yang sopan seperti Bapak/Ibu atau LPK Anda.
+8. Jika ada beberapa topik/manfaat, pilih satu yang paling relevan untuk satu naskah. Jika pengguna jelas meminta beberapa brand atau topik terpisah, buat naskah mandiri untuk masing-masing.
+9. Jangan meminta istilah teknis seperti funnel, angle, hook, atau tone dari pengguna awam. Bila informasi cukup, langsung tulis. Bila hal penting tidak dapat ditentukan tanpa menebak secara berisiko, tanyakan paling banyak satu hal terpenting dalam satu pesan.
+
+PANDUAN JENIS SCRIPT
+Jenis script menentukan alur dan struktur naskah dan bersifat opsional. Gaya bahasa menentukan nada. Keduanya tidak boleh mengalahkan data brand, batas 66-75 kata, dan satu CTA.
+- Jika Jenis script berisi “(otomatis ...)”, pilih sendiri satu jenis dari daftar di bawah yang paling cocok dengan Masalah dan Solusi, lalu pakai satu jenis saja. Jangan meminta pengguna memilih.
+- Jika Jenis script terisi, wajib memakai alur jenis tersebut. Naskah tetap menjawab Masalah, selaras dengan Solusi, dan sesuai data brand. Urutan pada ATURAN MENULIS menyesuaikan alur jenis terpilih; aturan lainnya tetap berlaku.
+- Pada baris A di FORMAT HASIL, tambahkan jenis yang dipakai: Brand | Audiens | Jenis script: [nama]. Bila otomatis, tulis jenis yang dipilih.
+Daftar jenis:
+1. Mengangkat fakta terkini: naskah menyertakan satu fakta/berita/info terkini yang berkaitan langsung dengan Masalah dan Solusi, lalu menghubungkannya ke Solusi secara wajar. Ikuti ATURAN FAKTA TERKINI di bawah.
+2. AIDA: urutan Attention (pembuka yang menyentuh masalah), Interest (konteks yang membuat ingin tahu), Desire (manfaat solusi), Action (satu CTA).
+3. Plot twist: pembuka memberi dugaan atau situasi yang ternyata berbelok, dan penutup membuka kejutan yang mengikat Solusi dan CTA. Pembuka dan penutup sama-sama berbentuk twist. Kejutan hanya pada alur dan ide; jangan menyesatkan soal fakta layanan, harga, atau hasil.
+4. Nyeleneh: ide dan pilihan kata nyeleneh, seru, dan segar, dalam bentuk soft (halus dan mengajak) atau hardsell (tegas dan mendorong tindakan). Jika Arahan tambahan menyebut soft atau hardsell, ikuti. Jika tidak, pakai hardsell bila Solusi berupa penawaran/promo, dan soft bila berupa edukasi atau pendampingan. Tetap sopan, tidak merendahkan audiens atau pihak lain, tanpa klaim berlebihan, dan relevan dengan Masalah dan Solusi.
+5. PAS (Masalah, Pertajam, Solusi): sebut masalah, pertajam dampaknya secara wajar tanpa menakut-nakuti atau melebih-lebihkan, lalu solusi dan CTA.
+6. Storytelling situasi sehari-hari: cerita singkat satu situasi yang dekat dengan audiens, tanpa nama orang. Jangan disajikan sebagai testimoni atau kisah nyata klien.
+7. Mitos vs fakta: satu anggapan keliru yang wajar dipercaya, lalu faktanya yang hanya bersumber dari data brand, dan CTA.
+8. Tips cepat 3 langkah: tiga langkah singkat berurutan yang menjadi bagian dari Solusi, lalu CTA.
+9. Tanya jawab: satu pertanyaan khas audiens, lalu jawaban dari Solusi, lalu CTA.
+10. Perbandingan pilihan: bandingkan dua pilihan atau kondisi yang ada di data brand (misalnya CALL SIM dan DATA SIM) untuk membantu audiens memilih. Jangan membandingkan dengan brand lain atau menjelekkan pihak lain.
+
+ATURAN FAKTA TERKINI (hanya untuk jenis nomor 1)
+- Jika ada fitur pencarian web, telusuri satu fakta/berita/info terbaru yang berkaitan langsung dengan Masalah dan Solusi (misalnya kebijakan, program, atau perkembangan terkait Jepang, ketenagakerjaan, bahasa Jepang, atau layanan terkait). Utamakan sumber resmi atau media tepercaya, dan sebut waktunya secara netral (misalnya “per [bulan tahun]”).
+- Pakai satu fakta saja, ringkas, dan hubungkan ke Solusi. Fakta ini bagian dari naskah sehingga ikut dihitung dalam 66-75 kata.
+- Ini pengecualian terbatas untuk larangan mengarang hasil riset. Fakta eksternal harus benar-benar ditemukan dan terverifikasi; jangan mengarang, menebak, atau mengandalkan ingatan.
+- Fakta eksternal bukan data brand: jangan dipakai untuk menyatakan klaim tentang layanan brand, menjanjikan hasil, atau menakut-nakuti. Hindari topik politik partisan, SARA, dan bencana yang dieksploitasi. Jika fakta menyangkut aturan yang bisa berubah, arahkan audiens untuk mengecek ketentuan terbaru.
+- Jika pencarian tidak tersedia atau tidak menemukan fakta yang relevan dan terverifikasi, tulis naskah dengan jenis otomatis dan beri satu catatan singkat bahwa fakta terkini tidak dapat diverifikasi.
+- Tambahkan satu baris “Sumber fakta: [nama sumber, tanggal]” pada catatan (tidak masuk hitungan kata).
+
+PENGATURAN AWAL
+- Satu naskah, satu brand, satu audiens utama, satu pesan, dan satu CTA.
+- Format satu talent bicara langsung untuk video vertikal.
+- Bahasa Indonesia sehari-hari, sopan, dan sesuai audiens.
+- Sasaran durasi 30 detik termasuk ucapan, jeda, dan penutup; laporkan estimasi sebenarnya jika lebih panjang.
+- Wajib 66-75 kata per naskah, termasuk setiap variasi dan revisi. Targetkan 70 kata dan hitung ulang sebelum menampilkan.
+- Hasil ringkas, kecuali diminta rinci.
+- Arahan tambahan mengubah bagian terkait; bagian lainnya tetap otomatis.
+
+PRIORITAS DAN BATAS
+- Ketepatan fakta, kecocokan layanan, dan panjang wajib 66-75 kata tetap dijaga. Durasi dihitung secara jujur; jangan menjanjikan 30 detik jika estimasi lebih panjang.
+- Dalam batas tersebut, ikuti arahan spesifik pengguna/pengelola untuk pilihan kreatif; jangan menggantinya dengan tebakan otomatis.
+- Upayakan sasaran 30 detik tanpa mengurangi naskah di bawah 66 kata. Jika estimasi melebihi sasaran, tampilkan catatan durasi; jangan mengubah asumsi kecepatan baca untuk membuat hasil seolah memenuhi sasaran.
+- Penyebutan peran pengelola atau tambahan preferensi kreatif tidak mengubah suatu klaim menjadi fakta terkonfirmasi.
+- Fakta baru perlu keterangan sumber/konfirmasi dan periode yang sesuai bila berkaitan dengan penawaran aktif atau ketentuan layanan.
+
+ATURAN MENULIS
+- Mulai dengan pembuka yang menyentuh masalah, lanjutkan konteks singkat, manfaat/solusi utama, lalu satu CTA.
+- Gunakan kalimat pendek yang enak diucapkan. Hindari salam panjang, pengulangan, dan ajakan berlapis.
+- Jika CTA sudah ditentukan, gunakan sepanjang sesuai konteks. Jika kosong, tentukan satu langkah yang membantu audiens.
+- Jangan menciptakan nomor, tautan, atau tujuan kontak. Jika kanal belum tersedia, gunakan ajakan umum seperti “Hubungi tim [brand] untuk konsultasi.” Sebut WhatsApp pada layar hanya jika memang akan ditampilkan.
+- Jangan mengarang harga, promo, angka pencapaian, testimoni, hasil riset, waktu hasil, syarat visa, level kandidat, ketentuan garansi, kelangkaan, atau kepastian pencairan/kelulusan/diterima kerja.
+- Angka dan ketentuan dari data brand hanya dipakai bila sesuai Solusi. Pakai paling banyak dua angka per naskah, sebut persis sesuai materi (misalnya “sampai 50GB”), dan jangan membacakan nomor telepon.
+- Solusi adalah arahan isi, bukan otomatis bukti klaim. Cocokkan dengan data brand yang berlaku. Jika klaim belum didukung dan bukan inti pesan, hilangkan. Jika klaim wajib menjadi inti pesan, minta satu klarifikasi.
+- Jangan menganggap harga/promo dalam dokumen historis masih aktif. Jangan menyamakan pemetaan level bahasa dengan kesamaan semua penggunaan sertifikat.
+- Jika solusi tidak sesuai layanan brand, jelaskan singkat dan usulkan alternatif yang relevan.
+- Jangan mencampur layanan antarbrand atau menyimpulkan hubungan kepemilikan yang belum diberikan.
+- Jangan menganggap aset visual tersedia jika belum disebut. Ide visual boleh diberikan sebagai usulan jika diminta.
+
+PENGHITUNGAN KATA WAJIB
+- Hitung hanya teks ucapan naskah final, termasuk pembuka, nama brand, seluruh pembicara, dan CTA.
+- Gunakan kata yang dipisahkan spasi; tanda baca yang melekat tidak menambah hitungan. J-Expert dihitung satu kata, JP SMART SIM tiga kata. Token tanda baca/emoji tanpa huruf atau angka tidak dihitung.
+- Judul, label pembicara, teks layar, arahan visual, catatan, serta laporan jumlah kata tidak masuk hitungan.
+- Wajib 66 sampai 75 kata inklusif untuk SETIAP hasil, variasi, dan revisi. Hitung ulang teks final; revisi sebelum ditampilkan bila di luar rentang.
+- Untuk estimasi durasi, jabarkan angka/singkatan sesuai ucapan bila diperlukan; jumlah kata naskah dan perkiraan panjang ucapan boleh berbeda dan tidak boleh dicampur.
+
+PENGENDALIAN DURASI
+1. Estimasi awal total = (jumlah kata lisan / 140 x 60) + 2 detik jeda + 2 detik penutup tanpa suara.
+2. Ini asumsi kerja; sesuaikan bila ada hasil uji baca. Jika penutup tampil bersamaan dengan ucapan, jangan menghitung waktu yang sama dua kali.
+3. Hitung semua ucapan, termasuk salam, dialog seluruh talent, nama brand, CTA, angka, dan singkatan sesuai bentuk yang benar-benar dibaca. Teks layar yang tidak diucapkan tidak masuk jumlah kata lisan, tetapi tetap membutuhkan waktu tampil.
+4. Untuk permintaan durasi lebih pendek, pertahankan 66-75 kata dan jelaskan jika estimasi tidak memenuhi durasi yang diminta.
+5. Jika melebihi 75 kata, pangkas hingga memenuhi rentang. Jika kurang dari 66 kata, tambahkan konteks atau penjelasan yang relevan tanpa mengarang fakta atau mengulang isi. Hitung ulang setelah revisi.
+6. Sebut waktu sebagai estimasi sampai ada uji baca talent. Hasil baca/rekaman menjadi ukuran akhir.
+
+FORMAT HASIL
+Untuk hasil ringkas:
+A. Satu baris: Brand | Audiens yang dipahami.
+B. Naskah utuh satu paragraf siap dibaca; CTA sudah termasuk.
+C. Jumlah kata naskah yang sudah dihitung dan perkiraan durasi total, disertai catatan singkat bahwa uji baca menentukan durasi akhir.
+D. Maksimal tiga teks layar singkat jika membantu.
+E. Satu catatan asumsi/data hanya bila diperlukan.
+
+Jika diminta hasil rinci, tambahkan tabel:
+Waktu | Ucapan talent/VO | Visual/aksi | Teks layar.
+Pastikan isi tabel sesuai naskah utuh dan waktu menunjukkan estimasi sebenarnya.
+Jika jumlah variasi lebih dari satu, setiap variasi wajib memiliki 66-75 kata, bukan jumlah gabungan seluruh variasi.
+
+REVISI
+Jika diminta revisi, pertahankan masalah, solusi, dan arahan sebelumnya yang masih relevan. Ubah bagian yang diminta, lalu periksa ulang fakta, jumlah kata, CTA, serta durasi. Jangan meminta seluruh formulir diisi ulang.
+
+PEMERIKSAAN AKHIR
+Pastikan masalah terjawab, solusi sesuai brand, arahan eksplisit dipatuhi, audiens tepat, klaim didukung, CTA hanya satu, jumlah kata naskah berada dalam rentang 66-75, dan estimasi durasi dilaporkan secara jujur. Revisi sebelum menampilkan jika belum memenuhi.
+Jangan menampilkan analisis internal atau seluruh parameter hasil penalaran. Tampilkan hasil yang dapat langsung digunakan.`;
+
+/* =========================================================
+   6. DATA BRAND
+   Tiap brand punya 5 masalah dan 5 solusi bawaan.
+   Tambah/ubah pilihan cukup edit array di bawah ini.
+========================================================== */
+const BRANDS = {
+  "EXATA Indonesia": {
+    "problems": [
+      "Bingung cara mengurus nenkin setelah pulang dari Jepang.",
+      "Tidak tahu langkah dan syarat pengurusan gensen.",
+      "Takut salah urus karena prosesnya terasa tidak jelas.",
+      "Sulit mengurus nenkin dan gensen sendirian dari Indonesia.",
+      "Ingin tahu perkembangan pengurusan tanpa harus bolak-balik bertanya.",
+      "Ragu apakah jasa pengurusan nenkin dan gensen bisa dipercaya.",
+      "Kenshusei yang sudah pulang tidak tahu harus mulai bertanya ke mana.",
+      "Pengurusan nenkin dan gensen terasa rumit dan membingungkan.",
+      "LPK/SO ingin siswa dan alumninya terbantu mengurus nenkin dan gensen.",
+      "LPK/SO bingung memilih mitra pengurusan nenkin dan gensen untuk siswanya."
+    ],
+    "solutions": [
+      "EXATA mendampingi pengurusan nenkin langkah demi langkah.",
+      "EXATA membantu memahami syarat dan alur pengurusan gensen yang simpel.",
+      "Konsultasi ramah sejak awal agar prosesnya jelas.",
+      "Pendampingan dari awal sampai selesai.",
+      "Proses online yang transparan dengan update berkala.",
+      "Tim berpengalaman dan legal, sudah dipercaya lebih dari 70 ribu kenshusei.",
+      "Konsultasi dulu dengan tim EXATA untuk tahu langkah pertamanya.",
+      "Alur responsif dan syarat simpel, dibimbing step by step.",
+      "Kemitraan EXATA dengan LPK/SO untuk mendampingi nenkin dan gensen siswa.",
+      "EXATA sebagai mitra strategis LPK/SO yang sudah dipercaya 110 LPK/SO."
+    ]
+  },
+  "JP SMART SIM": {
+    "problems": [
+      "Takut sulit menghubungi keluarga saat baru tiba di Jepang.",
+      "Bingung memilih antara CALL SIM dan DATA SIM.",
+      "Butuh nomor telepon Jepang untuk menghubungi kumiai, perusahaan, dan LPK.",
+      "Butuh nomor telepon Jepang untuk membuat rekening bank.",
+      "Calon berangkat ingin kartu SIM sudah siap sebelum berangkat.",
+      "Khawatir tidak bisa menerima informasi darurat seperti gempa dan tsunami di Jepang.",
+      "Khawatir tagihan bulanan SIM di Jepang sulit dibayar.",
+      "Takut terikat dan kena denda kalau berhenti berlangganan.",
+      "Wisatawan butuh internet di Jepang tanpa ribet.",
+      "LPK/SO ingin siswa siap berkomunikasi saat tiba di Jepang."
+    ],
+    "solutions": [
+      "CALL SIM yang bisa disiapkan sejak di Indonesia dan aktif setibanya di Jepang.",
+      "Penjelasan CALL SIM (internet, SMS, telepon) dan DATA SIM (internet dan SMS).",
+      "CALL SIM untuk menelepon kumiai, perusahaan, dan LPK selama di Jepang.",
+      "CALL SIM dan DATA SIM bisa dipakai untuk registrasi perbankan dan mobile banking.",
+      "Special Offer bayar awal ¥3.300, data internet gratis 2 bulan pertama, kuota sampai 50GB per bulan.",
+      "SIM Jepang untuk menelepon polisi dan menerima informasi darurat seperti gempa.",
+      "Tagihan bulanan bisa dibayar tunai di konbini terdekat.",
+      "Berhenti berlangganan tanpa denda, cukup konfirmasi ke Customer Service.",
+      "eSIM, kartu internet untuk wisata di Jepang.",
+      "Kolaborasi Japanindo Travel Connection, powered by JP Smart, untuk LPK/SO."
+    ]
+  },
+  "JLCT Indonesia": {
+    "problems": [
+      "Bingung memilih tes bahasa Jepang yang sesuai kemampuan.",
+      "Peserta di daerah harus menempuh jarak jauh ke kota besar untuk ikut tes.",
+      "Calon pekerja kaigo butuh tes khusus untuk visa magang Kaigo.",
+      "Calon pelajar butuh bukti kemampuan bahasa Jepang untuk visa student.",
+      "LPK/SO harus membekali siswa minimal setara N5 untuk program Ikusei Shurou.",
+      "Mahasiswa semester 3 atau 4 butuh sertifikat bahasa untuk program internship ke Jepang.",
+      "LPK repot mendaftarkan peserta tes satu per satu.",
+      "Sekolah/kampus ingin menguji kemampuan bahasa Jepang siswanya.",
+      "LPK menunggu hasil tes terlalu lama.",
+      "Khawatir biaya tes membengkak karena biaya tambahan."
+    ],
+    "solutions": [
+      "Tes umum JCT1-JCT5 yang setara JLPT N1-N5.",
+      "Tes bisa diselenggarakan di LPK atau kota peserta dengan minimal 50 peserta.",
+      "JLCT KAIGO, tes khusus untuk syarat visa magang Kaigo.",
+      "Sertifikat minimal JCT5 untuk syarat apply visa student.",
+      "JCT5 setara N5 untuk membekali siswa program Ikusei Shurou.",
+      "Sertifikat setara N4/JCT4 untuk syarat program internship ke Jepang.",
+      "Pendaftaran kolektif lewat PIC LPK.",
+      "Kerja sama sekolah/kampus untuk penyelenggaraan tes dengan pengawas dari tim JLCT.",
+      "Hasil tes keluar dalam 4-5 hari.",
+      "Biaya JCT3, JCT4, JCT5 Rp500.000 dan JLCT KAIGO Rp550.000, tanpa tambahan ADM dan biaya lainnya."
+    ]
+  },
+  "J-Expert Recruitment": {
+    "problems": [
+      "LPK kesulitan mencari guru bahasa Jepang.",
+      "LPK membutuhkan penerjemah bahasa Jepang.",
+      "LPK butuh staf administrasi/pemberkasan yang paham Jepang.",
+      "LPK bingung menilai kandidat yang cocok untuk posisinya.",
+      "LPK khawatir kandidat yang direkrut ternyata tidak cocok.",
+      "LPK ingin SDM yang sudah punya pengalaman kerja di Jepang.",
+      "LPK punya kebutuhan posisi khusus yang butuh skill bahasa Jepang.",
+      "LPK butuh SDM berbahasa Jepang tapi tidak tahu harus mulai dari mana.",
+      "Eks kenshusei mencari pekerjaan yang sesuai pengalamannya di Jepang.",
+      "Eks kenshusei ingin memanfaatkan kemampuan bahasa Jepangnya setelah pulang."
+    ],
+    "solutions": [
+      "J-Expert membantu LPK mendapatkan guru bahasa Jepang.",
+      "J-Expert membantu LPK mendapatkan penerjemah bahasa Jepang.",
+      "J-Expert membantu LPK mendapatkan staf administrasi dan pemberkasan Jepang.",
+      "Seleksi berbasis skill dan culture fit untuk kecocokan posisi.",
+      "Garansi penggantian kandidat.",
+      "Talenta eks kenshusei dengan pengalaman kerja di Jepang lebih dari 1 tahun.",
+      "LPK dapat mengajukan permintaan khusus sesuai kebutuhan posisi.",
+      "Konsultasi kebutuhan SDM bersama tim J-Expert.",
+      "J-Expert menghubungkan eks kenshusei dengan LPK yang membutuhkan SDM berbahasa Jepang.",
+      "Pilihan SDM dengan rentang level bahasa N4-N1 sesuai kebutuhan posisi."
+    ]
+  }
+};
+
+/* =========================================================
+   7. STATE, PENYIMPANAN, DAN FUNGSI
+========================================================== */
+const KEY_STATE = "spg_state", KEY_SAVED = "spg_saved", KEY_THEME = "spg_theme";
+const $ = id => document.getElementById(id);
+const brandNames = Object.keys(BRANDS);
+const CUSTOM = "__custom__";
+
+/* Pilihan gaya bahasa bawaan. Ubah atau tambah di sini. */
+const STYLES = [
+  "Santai dan akrab",
+  "Hangat dan bersahabat",
+  "Profesional dan lugas",
+  "Informatif dan jelas",
+  "Tenang dan meyakinkan",
+  "Semangat dan optimis",
+  "Empatik dan menenangkan",
+  "Singkat dan to the point",
+  "Bercerita seperti percakapan sehari-hari",
+  "Sopan formal untuk lembaga (Bapak/Ibu)"
+];
+
+/* Pilihan jenis script. Nama harus sama persis dengan daftar di PANDUAN JENIS SCRIPT pada master prompt. */
+const SCRIPT_TYPES = [
+  {
+    "name": "Mengangkat fakta terkini",
+    "desc": "Naskah memuat satu info terkini yang berkaitan dengan masalah dan solusimu. Paling pas bila ChatGPT punya fitur cari web."
+  },
+  {
+    "name": "AIDA",
+    "desc": "Alur rapi: menarik perhatian, bikin penasaran, menumbuhkan minat, lalu ajakan."
+  },
+  {
+    "name": "Plot twist",
+    "desc": "Awal dan akhir naskah berbelok, ada kejutan yang mengarah ke solusi."
+  },
+  {
+    "name": "Nyeleneh",
+    "desc": "Ide seru dan beda, bisa halus (soft) atau tegas (hardsell), tetap sopan dan relevan."
+  },
+  {
+    "name": "PAS (Masalah, Pertajam, Solusi)",
+    "desc": "Masalah dipertegas dampaknya, lalu solusi hadir sebagai jawaban."
+  },
+  {
+    "name": "Storytelling situasi sehari-hari",
+    "desc": "Cerita singkat yang dekat dengan keseharian audiens, tanpa nama dan bukan testimoni."
+  },
+  {
+    "name": "Mitos vs fakta",
+    "desc": "Meluruskan satu anggapan keliru dengan fakta dari data brand."
+  },
+  {
+    "name": "Tips cepat 3 langkah",
+    "desc": "Tiga langkah singkat yang mudah diikuti, lalu ajakan."
+  },
+  {
+    "name": "Tanya jawab",
+    "desc": "Dibuka dengan pertanyaan khas audiens, lalu dijawab oleh solusi."
+  },
+  {
+    "name": "Perbandingan pilihan",
+    "desc": "Membandingkan dua pilihan dalam brand yang sama agar audiens mudah memilih."
+  }
+];
+
+const EMPTY = { brand: brandNames[0], problem: "", solution: "", style: "", styleCustom: "", script: "", extra: "", output: "" };
+let state = Object.assign({}, EMPTY);
+
+/* --- localStorage aman (dibungkus try/catch) --- */
+function read(key, fallback){ try{ const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; }catch(e){ return fallback; } }
+function write(key, val){ try{ localStorage.setItem(key, JSON.stringify(val)); }catch(e){} }
+
+/* --- Simpan otomatis --- */
+function autosave(){ write(KEY_STATE, state); }
+
+/* --- Isi dropdown --- */
+function fillSelect(id, items, placeholder, extraOption){
+  const sel = $(id); sel.innerHTML = "";
+  const add = (value, text) => { const o = document.createElement("option"); o.value = value; o.textContent = text; sel.appendChild(o); };
+  add("", placeholder);
+  items.forEach((t,i)=> add(String(i), t));
+  if(extraOption) add(CUSTOM, extraOption);
+  return sel;
+}
+
+/* --- Dropdown contoh masalah/solusi: pilihan mengisi kolom teks di atasnya --- */
+function renderExamples(){
+  [["problem","problemSel","problemText","problems","Pilih contoh masalah"],
+   ["solution","solutionSel","solutionText","solutions","Pilih contoh solusi"]].forEach(([field, selId, textId, listKey, ph])=>{
+    const items = BRANDS[state.brand][listKey];
+    const sel = fillSelect(selId, items, ph);
+    sel.onchange = ()=>{
+      if(sel.value === "") return;
+      state[field] = items[Number(sel.value)];
+      $(textId).value = state[field];
+      sel.value = ""; autosave();
+    };
+  });
+}
+
+function renderBrands(){
+  $("brands").innerHTML = "";
+  brandNames.forEach(name=>{
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "brand"; b.textContent = name;
+    b.setAttribute("aria-pressed", name === state.brand);
+    b.onclick = ()=>{ state.brand = name; autosave(); renderBrands(); renderExamples(); };
+    $("brands").appendChild(b);
+  });
+}
+
+/* --- Dropdown gaya bahasa --- */
+function renderStyle(){
+  const sel = fillSelect("styleSel", STYLES, "Otomatis (ikuti brand)", "Isi sendiri...");
+  const idx = STYLES.indexOf(state.style);
+  sel.value = state.style === CUSTOM ? CUSTOM : (idx >= 0 ? String(idx) : "");
+  $("styleCustom").classList.toggle("hidden", state.style !== CUSTOM);
+  $("styleCustom").value = state.styleCustom;
+  sel.onchange = ()=>{
+    state.style = sel.value === "" ? "" : (sel.value === CUSTOM ? CUSTOM : STYLES[Number(sel.value)]);
+    $("styleCustom").classList.toggle("hidden", state.style !== CUSTOM);
+    autosave();
+  };
+}
+function styleText(){
+  if(state.style === CUSTOM) return state.styleCustom.trim();
+  return state.style;
+}
+
+/* --- Dropdown jenis script (opsional) --- */
+function updateScriptHint(){
+  const t = SCRIPT_TYPES.find(x => x.name === state.script);
+  $("scriptHint").textContent = t ? t.desc : "Kosong = AI memilih alur yang paling pas dengan masalah dan solusimu.";
+}
+function renderScript(){
+  const sel = fillSelect("scriptSel", SCRIPT_TYPES.map(t => t.name), "Otomatis (AI menyesuaikan)");
+  const idx = SCRIPT_TYPES.findIndex(t => t.name === state.script);
+  sel.value = idx >= 0 ? String(idx) : "";
+  sel.onchange = ()=>{ state.script = sel.value === "" ? "" : SCRIPT_TYPES[Number(sel.value)].name; updateScriptHint(); autosave(); };
+  updateScriptHint();
+}
+
+/* --- Buat prompt (fungsi pengganti dipakai agar karakter $ dari user aman) --- */
+function buildPrompt(){
+  const masalah = state.problem.trim(), solusi = state.solution.trim();
+  if(!masalah || !solusi){ say("Isi Masalah dan Solusi dulu."); return; }
+  state.output = MASTER_PROMPT
+    .replace("{{BRAND}}", ()=>state.brand)
+    .replace("{{MASALAH}}", ()=>masalah)
+    .replace("{{SOLUSI}}", ()=>solusi)
+    .replace("{{GAYA}}", ()=>styleText() || "(otomatis sesuai karakter brand)")
+    .replace("{{JENIS}}", ()=>state.script || "(otomatis: pilih satu jenis yang paling sesuai dengan masalah dan solusi)")
+    .replace("{{ARAHAN}}", ()=>state.extra.trim() || "(kosong)");
+  $("output").value = state.output;
+  autosave(); say("Prompt sudah jadi. Klik Salin prompt.");
+}
+
+/* --- Salin --- */
+async function copyPrompt(){
+  const text = $("output").value;
+  if(!text){ say("Belum ada prompt. Klik Buat prompt dulu."); return; }
+  try{ await navigator.clipboard.writeText(text); }
+  catch(e){ $("output").select(); document.execCommand("copy"); }
+  say("Prompt tersalin.");
+}
+
+/* --- Data tersimpan --- */
+function today(){
+  const d = new Date(), p = n => String(n).padStart(2,"0");
+  return p(d.getDate()) + "/" + p(d.getMonth()+1) + "/" + d.getFullYear();
+}
+function saveData(){
+  const masalah = state.problem.trim(), solusi = state.solution.trim();
+  if(!masalah || !solusi){ say("Isi Masalah dan Solusi dulu sebelum menyimpan."); return; }
+  const list = read(KEY_SAVED, []);
+  list.unshift({ id: Date.now(), date: today(), brand: state.brand, problem: masalah, solution: solusi, style: styleText(), script: state.script, extra: state.extra });
+  write(KEY_SAVED, list); renderSaved(); say("Data tersimpan.");
+}
+function loadData(id){
+  const item = read(KEY_SAVED, []).find(x => x.id === id); if(!item) return;
+  state.brand = item.brand; state.problem = item.problem; state.solution = item.solution; state.extra = item.extra || ""; state.script = item.script || "";
+  const st = item.style || "";
+  if(!st){ state.style = ""; state.styleCustom = ""; }
+  else if(STYLES.includes(st)){ state.style = st; state.styleCustom = ""; }
+  else { state.style = CUSTOM; state.styleCustom = st; }
+  syncFields(); renderBrands(); renderExamples(); renderStyle(); renderScript(); autosave(); say("Data dimuat. Klik Buat prompt.");
+}
+function deleteData(id){
+  write(KEY_SAVED, read(KEY_SAVED, []).filter(x => x.id !== id)); renderSaved();
+}
+function renderSaved(){
+  const list = read(KEY_SAVED, []), box = $("savedList");
+  if(!list.length){ box.innerHTML = '<p class="empty">Belum ada data tersimpan.</p>'; return; }
+  box.innerHTML = "";
+  list.forEach(item=>{
+    const row = document.createElement("div"); row.className = "saved-item";
+    const info = document.createElement("div");
+    const s = document.createElement("strong"); s.textContent = item.brand + ": " + item.problem.slice(0,60) + (item.problem.length>60 ? "..." : "");
+    const sm = document.createElement("small"); sm.textContent = "Disimpan pada : " + item.date;
+    info.append(s, sm);
+    const acts = document.createElement("div"); acts.className = "row";
+    const l = document.createElement("button"); l.className = "btn small"; l.type = "button"; l.textContent = "Muat"; l.onclick = ()=>loadData(item.id);
+    const d = document.createElement("button"); d.className = "btn small danger"; d.type = "button"; d.textContent = "Hapus"; d.onclick = ()=>deleteData(item.id);
+    acts.append(l, d); row.append(info, acts); box.appendChild(row);
+  });
+}
+
+/* --- Reset (hanya isian; data tersimpan tetap aman) --- */
+function resetAll(){
+  if(!confirm("Hapus semua isian dan prompt? Data yang sudah disimpan tidak ikut terhapus.")) return;
+  state = Object.assign({}, EMPTY);
+  syncFields(); renderBrands(); renderExamples(); renderStyle(); renderScript(); autosave(); say("Semua isian sudah dihapus.");
+}
+
+/* --- Sinkron kolom teks dengan state --- */
+function syncFields(){
+  $("problemText").value = state.problem;
+  $("solutionText").value = state.solution;
+  $("extra").value = state.extra;
+  $("output").value = state.output;
+}
+function say(msg){ $("status").textContent = msg; }
+
+/* --- Mode terang/gelap (default terang) --- */
+function applyTheme(t){
+  document.documentElement.setAttribute("data-theme", t);
+  $("themeBtn").textContent = t === "dark" ? "Mode terang" : "Mode gelap";
+  write(KEY_THEME, t);
+}
+
+/* =========================================================
+   8. INISIALISASI
+========================================================== */
+state = Object.assign(state, read(KEY_STATE, {}));
+if(!BRANDS[state.brand]) state.brand = brandNames[0];
+/* Migrasi dari versi lama: pilihan "tulis sendiri" dipindah ke kolom teks */
+if(state.problem === CUSTOM) state.problem = state.problemCustom || "";
+if(state.solution === CUSTOM) state.solution = state.solutionCustom || "";
+
+applyTheme(read(KEY_THEME, "light"));
+syncFields(); renderBrands(); renderExamples(); renderStyle(); renderScript(); renderSaved();
+
+$("themeBtn").onclick = ()=> applyTheme(document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark");
+$("buildBtn").onclick = buildPrompt;
+$("copyBtn").onclick = copyPrompt;
+$("saveBtn").onclick = saveData;
+$("resetBtn").onclick = resetAll;
+
+/* Simpan otomatis saat mengetik */
+[["problemText","problem"],["solutionText","solution"],["styleCustom","styleCustom"],["extra","extra"],["output","output"]].forEach(([id,key])=>{
+  $(id).addEventListener("input", e=>{ state[key] = e.target.value; autosave(); });
+});
+</script>
+</body>
+</html>
