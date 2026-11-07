@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>SriGen</title>
+<title>SriGen — Script Prompt Generator</title>
+<meta name="description" content="Buat prompt siap salin untuk pesan pembuka, follow up, video, dan carousel sesuai karakter divisi Anda.">
 
 <!-- =========================================================
      1. STYLE
@@ -24,7 +25,7 @@
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--text);font:16px/1.6 var(--sans);transition:background .25s,color .25s}
 h1,h2{font-family:var(--serif);font-weight:700;margin:0}
-button,textarea,input{font:inherit;color:inherit}
+button,textarea,input,select{font:inherit;color:inherit}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
 /* ---------- Layout ---------- */
@@ -67,7 +68,30 @@ textarea:focus{border-color:var(--accent)}
 select{width:100%;margin-top:8px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--text);cursor:pointer}
 select:focus,input[type=text]:focus{border-color:var(--accent)}
 input[type=text]{width:100%;margin-top:8px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
-.hidden{display:none}
+.hidden{display:none!important}
+.format-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.format-card{text-align:left;padding:14px 12px;background:var(--bg);border:1px solid var(--line);border-radius:10px;cursor:pointer}
+.format-card strong,.format-card small{display:block}
+.format-card small{font-size:.78rem;font-weight:400;color:var(--muted);margin-top:4px;line-height:1.45}
+.format-card[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.format-card:hover{border-color:var(--accent)}
+.format-settings{margin-top:14px;padding:16px;background:var(--surface);border:1px solid var(--line);border-radius:10px}
+.field-label{display:block;font-size:.92rem;font-weight:600;margin-bottom:6px}
+.format-settings select,.format-settings input{margin-top:0}
+input[type=number]{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
+.format-settings .hint{font-size:.82rem;margin:6px 0 0}
+.settings-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.format-settings textarea{margin-top:0;min-height:80px}
+.output-card{border:1px solid var(--line);border-radius:12px;padding:20px;background:var(--surface)}
+.output-card #output{min-height:390px;background:var(--bg);line-height:1.65}
+.output-tag{display:inline-block;background:var(--accent-soft);color:var(--text);border-radius:5px;padding:4px 8px;font-size:.78rem;margin-bottom:12px}
+.output-card .btn{width:100%}
+.eyebrow{color:var(--accent);font-size:.72rem;letter-spacing:.13em;font-weight:700;margin-bottom:6px}
+.field-section>label{display:block;font-family:var(--serif);font-weight:700;font-size:1.25rem;margin-bottom:10px}
+.saved-item{align-items:flex-start}.saved-item .row{flex-shrink:0;gap:6px}
+.saved-item strong{font-size:.9rem}.saved-item small{font-size:.78rem}
+@media(max-width:480px){.format-options{grid-template-columns:1fr}.format-card{padding:10px 12px}.format-card small{margin-top:0}.settings-row{grid-template-columns:1fr}.saved-item{flex-wrap:wrap}.wrap{padding:20px 16px 40px}.output-card{padding:16px}}
+
 
 /* ---------- Data tersimpan ---------- */
 .saved-item{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
@@ -87,8 +111,9 @@ input[type=text]{width:100%;margin-top:8px;padding:10px 12px;border:1px solid va
 ========================================================== -->
 <header>
   <div>
+    <div class="eyebrow">PROMPT STUDIO</div>
     <h1>SriGen</h1>
-    <p>Bikin prompt naskah atau script langsung jadi dan siap ditempel ke ChatGPT.</p>
+    <p>Satu dashboard untuk merancang pesan, video, dan carousel. Buat prompt, salin, lalu tempel ke ChatGPT.</p>
   </div>
   <button class="btn small" id="themeBtn" type="button" aria-label="Ganti mode terang atau gelap">Mode gelap</button>
 </header>
@@ -99,41 +124,72 @@ input[type=text]{width:100%;margin-top:8px;padding:10px 12px;border:1px solid va
        3. KOLOM KIRI: PARAMETER
   ======================================================== -->
   <main>
+    <section aria-labelledby="formatTitle">
+      <h2 id="formatTitle">1. Format naskah</h2>
+      <p class="hint">Pilih hasil yang ingin dibuat oleh ChatGPT.</p>
+      <div class="format-options" id="formats" role="group" aria-label="Format naskah"></div>
+      <div class="format-settings" id="messageSettings">
+        <div class="settings-row">
+          <div><label class="field-label" for="messageStage">Tahap pesan</label>
+            <select id="messageStage"><option value="opening">Pembuka</option><option value="followup">Follow up</option></select>
+          </div>
+          <div id="followupField"><label class="field-label" for="followupNumber">Follow up ke berapa?</label>
+            <input id="followupNumber" type="number" required min="1" max="99" step="1" value="1" inputmode="numeric">
+          </div>
+        </div>
+        <div id="contextField" style="margin-top:14px">
+          <label class="field-label" for="conversationContext">Konteks percakapan <span style="font-weight:400">(opsional)</span></label>
+          <textarea id="conversationContext" placeholder="Contoh: Sudah mengirim penawaran, penerima belum membalas."></textarea>
+          <p class="hint">Tambahkan ringkasan chat sebelumnya agar follow up lebih relevan.</p>
+        </div>
+        <p class="hint" id="messageHint"></p>
+      </div>
+      <div class="format-settings" id="videoSettings">
+        <label class="field-label" for="videoDuration">Durasi video (detik)</label>
+        <input id="videoDuration" type="number" required min="5" max="600" step="1" value="30" inputmode="numeric" aria-describedby="durationHint">
+        <p class="hint" id="durationHint">Default 30 detik. Pilih 5–600 detik; panjang naskah mengikuti durasi.</p>
+      </div>
+      <div class="format-settings" id="carouselSettings">
+        <label class="field-label" for="slideCount">Jumlah slide</label>
+        <input id="slideCount" type="number" required min="2" max="30" step="1" value="6" inputmode="numeric" aria-describedby="slidesHint">
+        <p class="hint" id="slidesHint">2–30 slide, termasuk pembuka dan CTA. Prompt diakhiri arahan untuk membuat file Word (.docx) yang bisa diunduh.</p>
+      </div>
+    </section>
     <section>
-      <h2>1. Divisi</h2>
+      <h2>2. Divisi</h2>
       <div class="brands" id="brands"></div>
     </section>
 
-    <section>
-      <h2>2. Masalah</h2>
+    <section class="field-section">
+      <label for="problemText">3. Masalah</label>
       <p class="hint">Tulis masalahnya sendiri, atau pilih contoh di bawah lalu ubah sesuai kebutuhan.</p>
       <textarea id="problemText" placeholder="Tulis masalah di sini"></textarea>
       <select id="problemSel" aria-label="Contoh masalah"></select>
     </section>
 
-    <section>
-      <h2>3. Solusi</h2>
+    <section class="field-section">
+      <label for="solutionText">4. Solusi</label>
       <p class="hint">Tulis solusinya sendiri, atau pilih contoh di bawah lalu ubah sesuai kebutuhan.</p>
       <textarea id="solutionText" placeholder="Tulis solusi di sini"></textarea>
       <select id="solutionSel" aria-label="Contoh solusi"></select>
     </section>
 
     <section>
-      <h2>4. Gaya bahasa</h2>
+      <h2>5. Gaya bahasa</h2>
       <p class="hint">Boleh dikosongkan. Kalau kosong, gaya mengikuti karakter brand.</p>
       <select id="styleSel" aria-label="Gaya bahasa" style="margin-top:0"></select>
       <input type="text" id="styleCustom" class="hidden" placeholder="Tulis gaya bahasa sendiri">
     </section>
 
     <section>
-      <h2>5. Jenis script <small style="font-weight:400;color:var(--muted)">(boleh dikosongkan)</small></h2>
-      <select id="scriptSel" aria-label="Jenis script" style="margin-top:0"></select>
+      <h2>6. Alur naskah <small style="font-weight:400;color:var(--muted)">(boleh dikosongkan)</small></h2>
+      <select id="scriptSel" aria-label="Alur naskah" style="margin-top:0"></select>
       <p class="hint" id="scriptHint" style="margin-top:8px"></p>
     </section>
 
-    <section>
-      <h2>6. Arahan tambahan <small style="font-weight:400;color:var(--muted)">(boleh kosong)</small></h2>
-      <textarea id="extra" placeholder="Contoh: durasi lebih pendek, hasil rinci, kata wajib"></textarea>
+    <section class="field-section">
+      <label for="extra">7. Arahan tambahan <small style="font-weight:400;color:var(--muted)">(opsional)</small></label>
+      <textarea id="extra" placeholder="Contoh: target audiens pengelola LPK, CTA konsultasi, kata yang wajib dipakai"></textarea>
     </section>
 
     <div class="row">
@@ -148,12 +204,16 @@ input[type=text]{width:100%;margin-top:8px;padding:10px 12px;border:1px solid va
        4. KOLOM KANAN: HASIL PROMPT + DATA TERSIMPAN
   ======================================================== -->
   <aside class="sticky">
-    <section>
-      <h2>Prompt siap pakai</h2>
-      <textarea id="output" placeholder="Klik &quot;Buat prompt&quot; untuk melihat hasilnya di sini."></textarea>
+    <section class="output-card">
+      <div class="eyebrow">HASIL PROMPT</div>
+      <h2>Siap dibawa ke ChatGPT</h2>
+      <span class="output-tag" id="outputSummary"></span>
+      <p class="hint">Dashboard ini menyusun prompt. Tempel hasilnya ke ChatGPT untuk membuat naskah.</p>
+      <textarea id="output" aria-label="Prompt siap pakai" placeholder="Klik &quot;Buat prompt&quot; untuk melihat hasilnya di sini."></textarea>
       <div class="row" style="margin-top:10px">
-        <button class="btn primary" id="copyBtn" type="button">Klik tombol ini buat salin prompt, terus paste nanti ke GPT</button>
+        <button class="btn primary" id="copyBtn" type="button">Salin prompt</button>
       </div>
+      <p class="status" id="copyStatus" role="status"></p>
     </section>
 
     <section>
@@ -168,13 +228,13 @@ input[type=text]{width:100%;margin-top:8px;padding:10px 12px;border:1px solid va
 <!-- =========================================================
      5. MASTER PROMPT
      Edit isi prompt di sini. Penanda yang diganti otomatis:
-     {{BRAND}}  {{MASALAH}}  {{SOLUSI}}  {{GAYA}}  {{JENIS}}  {{ARAHAN}}
+     Data brand bersama + aturan hasil khusus untuk setiap format.
 ========================================================== -->
 <script>
 const MASTER_PROMPT = `PERAN DAN TUJUAN
-Kamu adalah penulis naskah video pendek, analis brand, dan editor bahasa Indonesia. Buat naskah yang natural saat diucapkan untuk empat brand berikut, dengan panjang wajib 66-75 kata per naskah dan sasaran durasi 30 detik.
+Kamu adalah copywriter, penulis naskah, analis brand, dan editor bahasa Indonesia. Buat {{FORMAT}} berdasarkan masalah dan solusi pengguna. Hasil harus siap digunakan, natural, sesuai karakter brand, dan mengikuti pengaturan format di bawah.
 
-Layani pengguna awam dan pengelola menggunakan aturan yang sama. Pengguna cukup memberikan Masalah dan Solusi. Semua arahan lain bersifat opsional dan boleh disampaikan dengan bahasa sehari-hari. Jangan mewajibkan pemilihan peran atau meminta seluruh parameter diisi.
+Pengguna cukup memberikan Masalah dan Solusi. Pilihan kreatif yang kosong disimpulkan secara wajar; jangan mewajibkan semua parameter diisi.
 
 PENGETAHUAN DASAR BRAND
 Sumber: materi resmi dari pengelola (banner EXATA x JP SMART SIM, X-banner JLCT x J-Expert 2026, brosur JP SMART SIM, company profile EXATA, JLCT, dan Japanindo Travel). Klaim hanya boleh memakai fakta yang tertulis di bagian ini dan di DATA BRAND TAMBAHAN. Brand yang tampil berdampingan di satu materi tidak berarti satu kepemilikan; jangan menyimpulkannya. Nama orang/tim internal tidak dipakai di naskah.
@@ -219,33 +279,29 @@ DATA BRAND TAMBAHAN, JIKA TERSEDIA
 - Hal yang tidak boleh disebut: klaim superlatif seperti “No. 1” dan “terbaik” (belum dikonfirmasi) serta nomor WhatsApp (berbeda antar materi).
 Data ini dapat disiapkan sekali dan diperbarui saat ada perubahan. Kolom kosong tidak perlu ditanyakan kecuali informasi tersebut menentukan kebenaran inti naskah.
 
+
 INPUT
+Brand: {{BRAND}}
 Masalah: {{MASALAH}}
 Solusi: {{SOLUSI}}
 Gaya bahasa: {{GAYA}}
-Jenis script: {{JENIS}}
+Alur naskah: {{JENIS}}
 Arahan tambahan: {{ARAHAN}}
 
-ARAHAN TAMBAHAN YANG BOLEH DIBERIKAN
-Brand, audiens, tujuan, topik, manfaat yang ditekankan, gaya bahasa, format talent/voice-over/dialog, CTA, jumlah variasi, durasi yang lebih pendek, visual yang tersedia, kata wajib, larangan, serta bentuk hasil ringkas/rinci.
-Jangan tampilkan daftar ini sebagai formulir wajib. Jangan menebak jabatan atau kewenangan orang yang mengirim masukan.
+PENGATURAN FORMAT
+{{PENGATURAN}}
 
-CARA MENENTUKAN PARAMETER
-1. Ambil Masalah, Solusi, dan arahan yang dinyatakan secara jelas. Pertahankan inti masalah dan maksud solusi; rapikan bahasanya bila perlu.
-2. Gunakan arahan eksplisit untuk pilihan kreatif yang dimaksud. Bagian yang tidak diisi mengikuti konteks yang masih berlaku, lalu disimpulkan dari masalah/solusi, kemudian memakai pengaturan awal.
-3. Brand yang disebut jelas diutamakan. Bila belum ada, gunakan brand bawaan jika cocok. Jika masih belum jelas, kenali dari kebutuhan: nenkin/gensen ke EXATA; koneksi/SIM di Jepang ke JP SMART SIM; tes bahasa/sertifikasi ke JLCT; rekrutmen SDM berbahasa Jepang untuk LPK ke J-Expert.
-4. Jika brand yang diminta bertentangan dengan masalah/solusi, atau beberapa brand sama-sama cocok, ajukan satu pertanyaan pilihan singkat. Kata Jepang, murah, mudah, atau bahasa Jepang saja tidak cukup menentukan brand.
-5. Pilih satu audiens dari pihak yang mengalami masalah dan pihak yang perlu mengambil tindakan. Jika keduanya berbeda, jelaskan hubungan itu secara wajar; misalnya masalah siswa dapat menjadi pesan kepada pengelola LPK jika solusi memerlukan keputusan lembaga.
-6. Tentukan satu tujuan, satu pesan utama, satu sudut pembuka, dan satu CTA. Jika solusi berupa penjelasan, utamakan edukasi dan ajakan ringan. Jika berupa layanan, gunakan ajakan konsultasi atau pendaftaran yang sesuai.
-7. Sesuaikan sapaan dan nada dengan audiens serta karakter brand. Untuk individu boleh memakai kamu; untuk lembaga gunakan sapaan yang sopan seperti Bapak/Ibu atau LPK Anda.
-8. Jika ada beberapa topik/manfaat, pilih satu yang paling relevan untuk satu naskah. Jika pengguna jelas meminta beberapa brand atau topik terpisah, buat naskah mandiri untuk masing-masing.
-9. Jangan meminta istilah teknis seperti funnel, angle, hook, atau tone dari pengguna awam. Bila informasi cukup, langsung tulis. Bila hal penting tidak dapat ditentukan tanpa menebak secara berisiko, tanyakan paling banyak satu hal terpenting dalam satu pesan.
+CARA MENENTUKAN ISI
+- Pertahankan inti masalah dan maksud solusi. Gunakan satu brand, satu audiens utama, satu pesan utama, dan satu CTA untuk setiap naskah, kecuali jumlah variasi diminta secara eksplisit.
+- Brand pilihan menjadi konteks utama. Jika masalah/solusi bertentangan dengan layanan brand, ajukan satu pertanyaan klarifikasi singkat; jangan mencampur layanan antarbrand.
+- Pilih audiens dari pihak yang mengalami masalah dan pihak yang perlu bertindak. Untuk individu boleh memakai kamu; untuk lembaga gunakan sapaan sopan seperti Bapak/Ibu.
+- Jika solusi berupa edukasi, pakai ajakan ringan. Jika berupa layanan, pilih konsultasi atau pendaftaran yang sesuai.
+- Pengaturan format di atas menentukan media, tahap pesan, durasi, atau jumlah slide. Arahan tambahan menyesuaikan isi dan kreativitas dalam pengaturan tersebut; jangan diam-diam mengganti format atau angkanya.
+- Jangan meminta istilah teknis seperti funnel, angle, hook, atau tone. Jika informasi cukup, langsung tulis. Jika kebenaran inti tidak dapat ditentukan, tanyakan paling banyak satu hal terpenting.
 
-PANDUAN JENIS SCRIPT
-Jenis script menentukan alur dan struktur naskah dan bersifat opsional. Gaya bahasa menentukan nada. Keduanya tidak boleh mengalahkan data brand, batas 66-75 kata, dan satu CTA.
-- Jika Jenis script berisi “(otomatis ...)”, pilih sendiri satu jenis dari daftar di bawah yang paling cocok dengan Masalah dan Solusi, lalu pakai satu jenis saja. Jangan meminta pengguna memilih.
-- Jika Jenis script terisi, wajib memakai alur jenis tersebut. Naskah tetap menjawab Masalah, selaras dengan Solusi, dan sesuai data brand. Urutan pada ATURAN MENULIS menyesuaikan alur jenis terpilih; aturan lainnya tetap berlaku.
-- Pada baris A di FORMAT HASIL, tambahkan jenis yang dipakai: Brand | Audiens | Jenis script: [nama]. Bila otomatis, tulis jenis yang dipilih.
+PANDUAN ALUR NASKAH
+Alur menentukan struktur, gaya bahasa menentukan nada. Sesuaikan alur dengan media dan tahap pesan; jangan mengalahkan fakta brand atau pengaturan format.
+Jika alur otomatis, pilih satu alur yang paling sesuai. Jika dipilih, gunakan alur tersebut secara natural.
 Daftar jenis:
 1. Mengangkat fakta terkini: naskah menyertakan satu fakta/berita/info terkini yang berkaitan langsung dengan Masalah dan Solusi, lalu menghubungkannya ke Solusi secara wajar. Ikuti ATURAN FAKTA TERKINI di bawah.
 2. AIDA: urutan Attention (pembuka yang menyentuh masalah), Interest (konteks yang membuat ingin tahu), Desire (manfaat solusi), Action (satu CTA).
@@ -260,75 +316,31 @@ Daftar jenis:
 
 ATURAN FAKTA TERKINI (hanya untuk jenis nomor 1)
 - Jika ada fitur pencarian web, telusuri satu fakta/berita/info terbaru yang berkaitan langsung dengan Masalah dan Solusi (misalnya kebijakan, program, atau perkembangan terkait Jepang, ketenagakerjaan, bahasa Jepang, atau layanan terkait). Utamakan sumber resmi atau media tepercaya, dan sebut waktunya secara netral (misalnya “per [bulan tahun]”).
-- Pakai satu fakta saja, ringkas, dan hubungkan ke Solusi. Fakta ini bagian dari naskah sehingga ikut dihitung dalam 66-75 kata.
+- Pakai satu fakta saja, ringkas, dan hubungkan ke Solusi. Fakta ini menjadi bagian dari naskah dan mengikuti batas format yang dipilih.
 - Ini pengecualian terbatas untuk larangan mengarang hasil riset. Fakta eksternal harus benar-benar ditemukan dan terverifikasi; jangan mengarang, menebak, atau mengandalkan ingatan.
 - Fakta eksternal bukan data brand: jangan dipakai untuk menyatakan klaim tentang layanan brand, menjanjikan hasil, atau menakut-nakuti. Hindari topik politik partisan, SARA, dan bencana yang dieksploitasi. Jika fakta menyangkut aturan yang bisa berubah, arahkan audiens untuk mengecek ketentuan terbaru.
 - Jika pencarian tidak tersedia atau tidak menemukan fakta yang relevan dan terverifikasi, tulis naskah dengan jenis otomatis dan beri satu catatan singkat bahwa fakta terkini tidak dapat diverifikasi.
 - Tambahkan satu baris “Sumber fakta: [nama sumber, tanggal]” pada catatan (tidak masuk hitungan kata).
 
-PENGATURAN AWAL
-- Satu naskah, satu brand, satu audiens utama, satu pesan, dan satu CTA.
-- Format satu talent bicara langsung untuk video vertikal.
-- Bahasa Indonesia sehari-hari, sopan, dan sesuai audiens.
-- Sasaran durasi 30 detik termasuk ucapan, jeda, dan penutup; laporkan estimasi sebenarnya jika lebih panjang.
-- Wajib 66-75 kata per naskah, termasuk setiap variasi dan revisi. Targetkan 70 kata dan hitung ulang sebelum menampilkan.
-- Hasil ringkas, kecuali diminta rinci.
-- Arahan tambahan mengubah bagian terkait; bagian lainnya tetap otomatis.
 
-PRIORITAS DAN BATAS
-- Ketepatan fakta, kecocokan layanan, dan panjang wajib 66-75 kata tetap dijaga. Durasi dihitung secara jujur; jangan menjanjikan 30 detik jika estimasi lebih panjang.
-- Dalam batas tersebut, ikuti arahan spesifik pengguna/pengelola untuk pilihan kreatif; jangan menggantinya dengan tebakan otomatis.
-- Upayakan sasaran 30 detik tanpa mengurangi naskah di bawah 66 kata. Jika estimasi melebihi sasaran, tampilkan catatan durasi; jangan mengubah asumsi kecepatan baca untuk membuat hasil seolah memenuhi sasaran.
-- Penyebutan peran pengelola atau tambahan preferensi kreatif tidak mengubah suatu klaim menjadi fakta terkonfirmasi.
-- Fakta baru perlu keterangan sumber/konfirmasi dan periode yang sesuai bila berkaitan dengan penawaran aktif atau ketentuan layanan.
+ATURAN FAKTA DAN BAHASA
+- Gunakan bahasa Indonesia sehari-hari yang sopan, kalimat pendek, dan isi yang relevan. Hindari pengulangan dan ajakan berlapis.
+- Gunakan CTA yang diminta jika sesuai konteks; jika kosong, tentukan satu langkah yang membantu audiens. Pada carousel, CTA utama berada di slide terakhir.
+- Jangan menciptakan nomor, tautan, atau kanal kontak. Jika belum tersedia, gunakan ajakan umum seperti “Hubungi tim [brand] untuk konsultasi.”
+- Jangan mengarang harga, promo, pencapaian, testimoni, riset, waktu hasil, syarat visa, level kandidat, garansi, kelangkaan, atau kepastian pencairan/kelulusan/diterima kerja.
+- Angka dari data brand hanya dipakai bila relevan dan disebut persis sesuai materi. Jangan membacakan nomor telepon dalam video.
+- Solusi adalah arahan isi, bukan bukti klaim. Cocokkan dengan data brand. Hilangkan klaim yang belum didukung jika bukan inti pesan; jika menjadi inti wajib, minta satu klarifikasi.
+- Jangan menganggap harga atau promo historis masih aktif. Jangan menyamakan pemetaan level bahasa dengan kesamaan semua penggunaan sertifikat.
+- Jangan menyimpulkan hubungan kepemilikan antarbrand. Jangan menganggap aset visual sudah tersedia; tandai saran visual sebagai usulan.
+- Sumber fakta eksternal, jika digunakan, ditulis pada catatan, bukan sebagai klaim layanan brand.
 
-ATURAN MENULIS
-- Mulai dengan pembuka yang menyentuh masalah, lanjutkan konteks singkat, manfaat/solusi utama, lalu satu CTA.
-- Gunakan kalimat pendek yang enak diucapkan. Hindari salam panjang, pengulangan, dan ajakan berlapis.
-- Jika CTA sudah ditentukan, gunakan sepanjang sesuai konteks. Jika kosong, tentukan satu langkah yang membantu audiens.
-- Jangan menciptakan nomor, tautan, atau tujuan kontak. Jika kanal belum tersedia, gunakan ajakan umum seperti “Hubungi tim [brand] untuk konsultasi.” Sebut WhatsApp pada layar hanya jika memang akan ditampilkan.
-- Jangan mengarang harga, promo, angka pencapaian, testimoni, hasil riset, waktu hasil, syarat visa, level kandidat, ketentuan garansi, kelangkaan, atau kepastian pencairan/kelulusan/diterima kerja.
-- Angka dan ketentuan dari data brand hanya dipakai bila sesuai Solusi. Pakai paling banyak dua angka per naskah, sebut persis sesuai materi (misalnya “sampai 50GB”), dan jangan membacakan nomor telepon.
-- Solusi adalah arahan isi, bukan otomatis bukti klaim. Cocokkan dengan data brand yang berlaku. Jika klaim belum didukung dan bukan inti pesan, hilangkan. Jika klaim wajib menjadi inti pesan, minta satu klarifikasi.
-- Jangan menganggap harga/promo dalam dokumen historis masih aktif. Jangan menyamakan pemetaan level bahasa dengan kesamaan semua penggunaan sertifikat.
-- Jika solusi tidak sesuai layanan brand, jelaskan singkat dan usulkan alternatif yang relevan.
-- Jangan mencampur layanan antarbrand atau menyimpulkan hubungan kepemilikan yang belum diberikan.
-- Jangan menganggap aset visual tersedia jika belum disebut. Ide visual boleh diberikan sebagai usulan jika diminta.
+FORMAT HASIL DAN PANJANG NASKAH
+{{ATURAN_FORMAT}}
 
-PENGHITUNGAN KATA WAJIB
-- Hitung hanya teks ucapan naskah final, termasuk pembuka, nama brand, seluruh pembicara, dan CTA.
-- Gunakan kata yang dipisahkan spasi; tanda baca yang melekat tidak menambah hitungan. J-Expert dihitung satu kata, JP SMART SIM tiga kata. Token tanda baca/emoji tanpa huruf atau angka tidak dihitung.
-- Judul, label pembicara, teks layar, arahan visual, catatan, serta laporan jumlah kata tidak masuk hitungan.
-- Wajib 66 sampai 75 kata inklusif untuk SETIAP hasil, variasi, dan revisi. Hitung ulang teks final; revisi sebelum ditampilkan bila di luar rentang.
-- Untuk estimasi durasi, jabarkan angka/singkatan sesuai ucapan bila diperlukan; jumlah kata naskah dan perkiraan panjang ucapan boleh berbeda dan tidak boleh dicampur.
-
-PENGENDALIAN DURASI
-1. Estimasi awal total = (jumlah kata lisan / 140 x 60) + 2 detik jeda + 2 detik penutup tanpa suara.
-2. Ini asumsi kerja; sesuaikan bila ada hasil uji baca. Jika penutup tampil bersamaan dengan ucapan, jangan menghitung waktu yang sama dua kali.
-3. Hitung semua ucapan, termasuk salam, dialog seluruh talent, nama brand, CTA, angka, dan singkatan sesuai bentuk yang benar-benar dibaca. Teks layar yang tidak diucapkan tidak masuk jumlah kata lisan, tetapi tetap membutuhkan waktu tampil.
-4. Untuk permintaan durasi lebih pendek, pertahankan 66-75 kata dan jelaskan jika estimasi tidak memenuhi durasi yang diminta.
-5. Jika melebihi 75 kata, pangkas hingga memenuhi rentang. Jika kurang dari 66 kata, tambahkan konteks atau penjelasan yang relevan tanpa mengarang fakta atau mengulang isi. Hitung ulang setelah revisi.
-6. Sebut waktu sebagai estimasi sampai ada uji baca talent. Hasil baca/rekaman menjadi ukuran akhir.
-
-FORMAT HASIL
-Untuk hasil ringkas:
-A. Satu baris: Brand | Audiens yang dipahami.
-B. Naskah utuh satu paragraf siap dibaca; CTA sudah termasuk.
-C. Jumlah kata naskah yang sudah dihitung dan perkiraan durasi total, disertai catatan singkat bahwa uji baca menentukan durasi akhir.
-D. Maksimal tiga teks layar singkat jika membantu.
-E. Satu catatan asumsi/data hanya bila diperlukan.
-
-Jika diminta hasil rinci, tambahkan tabel:
-Waktu | Ucapan talent/VO | Visual/aksi | Teks layar.
-Pastikan isi tabel sesuai naskah utuh dan waktu menunjukkan estimasi sebenarnya.
-Jika jumlah variasi lebih dari satu, setiap variasi wajib memiliki 66-75 kata, bukan jumlah gabungan seluruh variasi.
-
-REVISI
-Jika diminta revisi, pertahankan masalah, solusi, dan arahan sebelumnya yang masih relevan. Ubah bagian yang diminta, lalu periksa ulang fakta, jumlah kata, CTA, serta durasi. Jangan meminta seluruh formulir diisi ulang.
-
-PEMERIKSAAN AKHIR
-Pastikan masalah terjawab, solusi sesuai brand, arahan eksplisit dipatuhi, audiens tepat, klaim didukung, CTA hanya satu, jumlah kata naskah berada dalam rentang 66-75, dan estimasi durasi dilaporkan secara jujur. Revisi sebelum menampilkan jika belum memenuhi.
-Jangan menampilkan analisis internal atau seluruh parameter hasil penalaran. Tampilkan hasil yang dapat langsung digunakan.`;
+REVISI DAN PEMERIKSAAN AKHIR
+Jika diminta revisi, pertahankan konteks yang masih relevan dan ubah bagian yang diminta. Periksa masalah terjawab, solusi sesuai brand, audiens tepat, fakta didukung, alur sesuai, satu CTA utama, dan seluruh pengaturan format terpenuhi. Periksa panjang serta estimasi durasi hanya jika formatnya video; periksa jumlah slide jika formatnya carousel.
+Jangan tampilkan analisis internal. Tampilkan hasil yang dapat langsung digunakan.
+{{PENUTUP}}`;
 
 /* =========================================================
    6. DATA BRAND
@@ -508,7 +520,12 @@ const SCRIPT_TYPES = [
   }
 ];
 
-const EMPTY = { brand: brandNames[0], problem: "", solution: "", style: "", styleCustom: "", script: "", extra: "", output: "" };
+const FORMATS = [
+  {id:"message", name:"Pembuka / follow up", desc:"Pesan chat siap kirim"},
+  {id:"video", name:"Naskah video", desc:"Durasi sesuai kebutuhan"},
+  {id:"carousel", name:"Naskah carousel", desc:"Per slide + arahan file Word"}
+];
+const EMPTY = { brand: brandNames[0], problem: "", solution: "", style: "", styleCustom: "", script: "", extra: "", output: "", format: "video", messageStage: "opening", followupNumber: 1, conversationContext: "", videoDuration: 30, slideCount: 6, promptVersion: 2 };
 let state = Object.assign({}, EMPTY);
 
 /* --- localStorage aman (dibungkus try/catch) --- */
@@ -517,6 +534,79 @@ function write(key, val){ try{ localStorage.setItem(key, JSON.stringify(val)); }
 
 /* --- Simpan otomatis --- */
 function autosave(){ write(KEY_STATE, state); }
+function changed(){
+  state.output = ""; $("output").value = "";
+  $("copyStatus").textContent = "Pengaturan berubah. Klik Buat prompt untuk memperbarui hasil.";
+  $("status").textContent = "";
+  updateSummary(); autosave();
+}
+function formatSummary(data = state){
+  if(data.format === "message") return data.messageStage === "followup" ? "Follow up ke-" + data.followupNumber : "Pesan pembuka";
+  if(data.format === "carousel") return "Carousel · " + data.slideCount + " slide";
+  return "Video · " + data.videoDuration + " detik";
+}
+function updateSummary(){ $("outputSummary").textContent = formatSummary(); }
+function renderFormat(){
+  const box = $("formats"); box.replaceChildren();
+  FORMATS.forEach(format => {
+    const button = document.createElement("button"); button.type = "button"; button.className = "format-card";
+    button.setAttribute("aria-pressed", String(state.format === format.id));
+    const title = document.createElement("strong"); title.textContent = format.name;
+    const desc = document.createElement("small"); desc.textContent = format.desc;
+    button.append(title, desc); button.onclick = () => { if(state.format === format.id) return; state.format = format.id; renderFormat(); changed(); };
+    box.append(button);
+  });
+  $("messageSettings").classList.toggle("hidden", state.format !== "message");
+  $("videoSettings").classList.toggle("hidden", state.format !== "video");
+  $("carouselSettings").classList.toggle("hidden", state.format !== "carousel");
+  $("messageStage").value = state.messageStage;
+  $("followupNumber").value = state.followupNumber;
+  $("videoDuration").value = state.videoDuration;
+  $("slideCount").value = state.slideCount;
+  $("conversationContext").value = state.conversationContext;
+  updateStage(); updateSummary();
+}
+function updateStage(){
+  const isFollowup = state.messageStage === "followup";
+  $("followupField").classList.toggle("hidden", !isFollowup);
+  $("contextField").classList.toggle("hidden", !isFollowup);
+  $("messageHint").textContent = isFollowup ? "Lanjutkan percakapan dengan pesan yang relevan dan tidak mendesak." : "Mulai percakapan dengan sapaan, manfaat yang relevan, dan satu ajakan ringan.";
+}
+function validateSettings(){
+  const field = state.format === "video" ? "videoDuration" : state.format === "carousel" ? "slideCount" : state.messageStage === "followup" ? "followupNumber" : null;
+  if(!field) return true;
+  const input = $(field);
+  if(!input.checkValidity()){
+    say(field === "videoDuration" ? "Isi durasi dengan bilangan bulat 5–600 detik." : field === "slideCount" ? "Isi jumlah slide dengan bilangan bulat 2–30." : "Isi nomor follow up dengan bilangan bulat 1–99.");
+    input.reportValidity(); input.focus(); return false;
+  }
+  return true;
+}
+function promptSettings(){
+  if(state.format === "message"){
+    const followup = state.messageStage === "followup";
+    return {
+      FORMAT: followup ? "pesan follow up ke-" + state.followupNumber : "pesan pembuka percakapan",
+      PENGATURAN: "Media: pesan chat (WhatsApp/DM).\nTahap: " + (followup ? "Follow up ke-" + state.followupNumber : "Pembuka / kontak pertama") + (followup ? "\nKonteks percakapan sebelumnya: " + (state.conversationContext.trim() || "(belum diberikan; jangan mengarang riwayat percakapan)") : ""),
+      ATURAN_FORMAT: "Tampilkan satu baris Brand | Audiens | Tahap pesan | Alur yang dipakai, lalu pesan chat siap salin tanpa label atau catatan di dalam pesannya. Gunakan paragraf pendek, sapaan sesuai audiens, konteks/manfaat relevan, dan satu CTA ringan. Targetkan 40–100 kata; utamakan keluwesan pesan. Tidak perlu durasi, talent/VO, teks layar, atau tabel video. " + (followup ? "Ini follow up ke-" + state.followupNumber + ": lanjutkan konteks yang tersedia, berikan pengingat atau nilai tambah tanpa mengulang seluruh penawaran. Nomor urutan tidak membuktikan adanya respons tertentu. Jangan mengarang balasan, janji, kesepakatan, atau tanggal kontak sebelumnya. Jika konteks kosong, tulis pengingat netral tanpa menyatakan bahwa penerima pernah merespons. Jangan menyalahkan penerima atau memakai tekanan/kelangkaan palsu." : "Ini kontak pertama. Perkenalkan brand dan alasan menghubungi secara singkat. Jangan menyatakan pernah berkomunikasi atau menerima persetujuan sebelumnya."),
+      PENUTUP: "Tulis pesan sesuai tahap yang dipilih, bukan seluruh rangkaian follow up."
+    };
+  }
+  if(state.format === "carousel") return {
+    FORMAT: "naskah carousel " + state.slideCount + " slide",
+    PENGATURAN: "Media: carousel media sosial.\nJumlah: tepat " + state.slideCount + " slide, termasuk slide pembuka dan slide CTA.\nBerkas hasil: Microsoft Word (.docx) yang dapat diunduh.",
+    ATURAN_FORMAT: "Tampilkan Brand | Audiens | Alur yang dipakai. Buat tepat " + state.slideCount + " slide bernomor berurutan. Slide pertama berisi hook yang kuat, slide terakhir memuat satu CTA utama. " + (Number(state.slideCount) === 2 ? "Karena hanya dua slide, slide pertama memadukan hook dan masalah; slide kedua memadukan solusi dan CTA." : "Slide tengah mengembangkan masalah, informasi, dan solusi dengan satu gagasan per slide.") + " Setiap slide memuat: judul singkat (maksimal 8 kata), isi ringkas (sekitar 15–35 kata), serta saran visual sebagai usulan. Sesuaikan alur dengan jumlah slide tanpa menambah slide di luar pilihan. Jangan menerapkan durasi video atau batas kata total video. Setelah seluruh slide, berikan satu caption singkat dengan CTA yang sama. Susun isi Word dengan judul dokumen, ringkasan brand/audiens, pembagian setiap slide yang jelas, serta caption. Jangan mengklaim file telah dibuat sebelum berkasnya benar-benar tersedia.",
+    PENUTUP: "Setelah naskah selesai, langsung buat dan lampirkan file Microsoft Word (.docx) yang dapat diunduh, berisi seluruh naskah carousel dengan pembagian slide yang rapi dan caption. Jangan hanya memberikan nama file atau tautan yang tidak memiliki berkas. Jika fitur pembuatan file tidak tersedia, jelaskan keterbatasannya secara singkat dan berikan isi dokumen yang siap disalin ke Word; jangan berpura-pura telah membuat file."
+  };
+  const duration = Number(state.videoDuration);
+  const wordTarget = Math.max(1, Math.floor((duration - Math.min(4, duration * 0.15)) * 140 / 60));
+  return {
+    FORMAT: "naskah video berdurasi " + duration + " detik",
+    PENGATURAN: "Media: video vertikal, satu talent bicara langsung kecuali format lain diminta.\nSasaran durasi total: " + duration + " detik, termasuk ucapan, jeda, dan penutup.\nTarget awal sekitar " + wordTarget + " kata lisan; sesuaikan dengan kebutuhan waktu, bukan batas tetap 66–75 kata.",
+    ATURAN_FORMAT: "Tampilkan A. Brand | Audiens | Alur yang dipakai; B. Naskah utuh siap dibaca, termasuk CTA; C. Jumlah kata final dan estimasi durasi total; D. Maksimal tiga teks layar singkat jika membantu; E. Catatan fakta/asumsi hanya bila perlu. Jika diminta rinci, tambahkan tabel Waktu | Ucapan talent/VO | Usulan visual/aksi | Teks layar yang konsisten dengan naskah.\nMulai dengan hook, kembangkan isi, lalu satu CTA sesuai alur. Hitung kata dari ucapan final saja menggunakan pemisah spasi; judul, label, teks layar, dan arahan visual tidak dihitung. Estimasi ucapan = jumlah kata lisan / 140 × 60 detik; tambahkan jeda dan penutup sesuai alokasi yang nyata tanpa menghitung waktu bersamaan dua kali. Target total " + duration + " detik. Pangkas atau kembangkan naskah agar sesuai sasaran tanpa mengarang fakta; jangan memaksakan 66–75 kata. Jabarkan angka/singkatan sesuai cara baca untuk estimasi. Laporkan estimasi jujur dan jelaskan bahwa uji baca menentukan durasi akhir. Setiap variasi mengikuti sasaran durasi yang sama.",
+    PENUTUP: "Buat naskah yang natural saat diucapkan dengan sasaran " + duration + " detik."
+  };
+}
 
 /* --- Isi dropdown --- */
 function fillSelect(id, items, placeholder, extraOption){
@@ -538,7 +628,7 @@ function renderExamples(){
       if(sel.value === "") return;
       state[field] = items[Number(sel.value)];
       $(textId).value = state[field];
-      sel.value = ""; autosave();
+      sel.value = ""; changed();
     };
   });
 }
@@ -549,7 +639,7 @@ function renderBrands(){
     const b = document.createElement("button");
     b.type = "button"; b.className = "brand"; b.textContent = name;
     b.setAttribute("aria-pressed", name === state.brand);
-    b.onclick = ()=>{ state.brand = name; autosave(); renderBrands(); renderExamples(); };
+    b.onclick = ()=>{ state.brand = name; renderBrands(); renderExamples(); changed(); };
     $("brands").appendChild(b);
   });
 }
@@ -564,7 +654,7 @@ function renderStyle(){
   sel.onchange = ()=>{
     state.style = sel.value === "" ? "" : (sel.value === CUSTOM ? CUSTOM : STYLES[Number(sel.value)]);
     $("styleCustom").classList.toggle("hidden", state.style !== CUSTOM);
-    autosave();
+    changed();
   };
 }
 function styleText(){
@@ -581,32 +671,32 @@ function renderScript(){
   const sel = fillSelect("scriptSel", SCRIPT_TYPES.map(t => t.name), "Otomatis (AI menyesuaikan)");
   const idx = SCRIPT_TYPES.findIndex(t => t.name === state.script);
   sel.value = idx >= 0 ? String(idx) : "";
-  sel.onchange = ()=>{ state.script = sel.value === "" ? "" : SCRIPT_TYPES[Number(sel.value)].name; updateScriptHint(); autosave(); };
+  sel.onchange = ()=>{ state.script = sel.value === "" ? "" : SCRIPT_TYPES[Number(sel.value)].name; updateScriptHint(); changed(); };
   updateScriptHint();
 }
 
 /* --- Buat prompt (fungsi pengganti dipakai agar karakter $ dari user aman) --- */
 function buildPrompt(){
   const masalah = state.problem.trim(), solusi = state.solution.trim();
-  if(!masalah || !solusi){ say("Isi Masalah dan Solusi dulu."); return; }
-  state.output = MASTER_PROMPT
-    .replace("{{BRAND}}", ()=>state.brand)
-    .replace("{{MASALAH}}", ()=>masalah)
-    .replace("{{SOLUSI}}", ()=>solusi)
-    .replace("{{GAYA}}", ()=>styleText() || "(otomatis sesuai karakter brand)")
-    .replace("{{JENIS}}", ()=>state.script || "(otomatis: pilih satu jenis yang paling sesuai dengan masalah dan solusi)")
-    .replace("{{ARAHAN}}", ()=>state.extra.trim() || "(kosong)");
+  if(!masalah || !solusi){ say("Isi Masalah dan Solusi dulu."); $(!masalah ? "problemText" : "solutionText").focus(); return; }
+  if(!validateSettings()) return;
+  const tokens = { ...promptSettings(), BRAND:state.brand, MASALAH:masalah, SOLUSI:solusi, GAYA:styleText() || "(otomatis sesuai karakter brand)", JENIS:state.script || "(otomatis: pilih satu alur yang paling sesuai)", ARAHAN:state.extra.trim() || "(kosong)" };
+  state.output = MASTER_PROMPT.replace(/\{\{([A-Z_]+)\}\}/g, (match, key) => Object.hasOwn(tokens, key) ? tokens[key] : match);
+  state.promptVersion = 2;
   $("output").value = state.output;
-  autosave(); say("Prompt sudah jadi. Klik Salin prompt.");
+  autosave(); say("Prompt sudah jadi. Klik Salin prompt, lalu tempel ke ChatGPT.");
 }
 
 /* --- Salin --- */
 async function copyPrompt(){
   const text = $("output").value;
-  if(!text){ say("Belum ada prompt. Klik Buat prompt dulu."); return; }
-  try{ await navigator.clipboard.writeText(text); }
-  catch(e){ $("output").select(); document.execCommand("copy"); }
-  say("Prompt tersalin.");
+  if(!text.trim()){ say("Belum ada prompt. Klik Buat prompt dulu."); return; }
+  try{ await navigator.clipboard.writeText(text); say("Prompt tersalin. Tempel ke ChatGPT untuk membuat naskah."); }
+  catch(e){
+    $("output").focus(); $("output").select();
+    let copied = false; try{ copied = document.execCommand("copy"); }catch(error){}
+    say(copied ? "Prompt tersalin. Tempel ke ChatGPT untuk membuat naskah." : "Penyalinan otomatis belum berhasil. Prompt sudah dipilih; tekan Ctrl+C atau salin secara manual.");
+  }
 }
 
 /* --- Data tersimpan --- */
@@ -617,31 +707,43 @@ function today(){
 function saveData(){
   const masalah = state.problem.trim(), solusi = state.solution.trim();
   if(!masalah || !solusi){ say("Isi Masalah dan Solusi dulu sebelum menyimpan."); return; }
-  const list = read(KEY_SAVED, []);
-  list.unshift({ id: Date.now(), date: today(), brand: state.brand, problem: masalah, solution: solusi, style: styleText(), script: state.script, extra: state.extra });
+  if(!validateSettings()) return;
+  const list = savedData();
+  list.unshift({ ...state, id: Date.now(), date: today(), problem: masalah, solution: solusi, style: styleText(), styleCustom: "", output: "" });
   write(KEY_SAVED, list); renderSaved(); say("Data tersimpan.");
 }
+function savedData(){ const list = read(KEY_SAVED, []); return Array.isArray(list) ? list.filter(item => item && typeof item === "object") : []; }
+function normalize(data){
+  const value = { ...EMPTY, ...(data && typeof data === "object" && !Array.isArray(data) ? data : {}) };
+  if(!BRANDS[value.brand]) value.brand = brandNames[0];
+  if(!FORMATS.some(f => f.id === value.format)) value.format = "video";
+  if(!["opening","followup"].includes(value.messageStage)) value.messageStage = "opening";
+  ["problem","solution","style","styleCustom","script","extra","output","conversationContext"].forEach(key => { if(typeof value[key] !== "string") value[key] = ""; });
+  ["videoDuration","slideCount","followupNumber"].forEach(key => { if(typeof value[key] !== "string" && typeof value[key] !== "number") value[key] = EMPTY[key]; });
+  if(!data || data.promptVersion !== 2) value.output = "";
+  return value;
+}
 function loadData(id){
-  const item = read(KEY_SAVED, []).find(x => x.id === id); if(!item) return;
-  state.brand = item.brand; state.problem = item.problem; state.solution = item.solution; state.extra = item.extra || ""; state.script = item.script || "";
+  const item = savedData().find(x => x.id === id); if(!item) return;
+  state = normalize({ ...item, output:"" });
   const st = item.style || "";
   if(!st){ state.style = ""; state.styleCustom = ""; }
   else if(STYLES.includes(st)){ state.style = st; state.styleCustom = ""; }
   else { state.style = CUSTOM; state.styleCustom = st; }
-  syncFields(); renderBrands(); renderExamples(); renderStyle(); renderScript(); autosave(); say("Data dimuat. Klik Buat prompt.");
+  syncFields(); renderBrands(); renderExamples(); renderStyle(); renderScript(); renderFormat(); autosave(); say("Data dimuat. Klik Buat prompt.");
 }
 function deleteData(id){
-  write(KEY_SAVED, read(KEY_SAVED, []).filter(x => x.id !== id)); renderSaved();
+  write(KEY_SAVED, savedData().filter(x => x.id !== id)); renderSaved();
 }
 function renderSaved(){
-  const list = read(KEY_SAVED, []), box = $("savedList");
+  const list = savedData(), box = $("savedList");
   if(!list.length){ box.innerHTML = '<p class="empty">Belum ada data tersimpan.</p>'; return; }
   box.innerHTML = "";
   list.forEach(item=>{
     const row = document.createElement("div"); row.className = "saved-item";
     const info = document.createElement("div");
-    const s = document.createElement("strong"); s.textContent = item.brand + ": " + item.problem.slice(0,60) + (item.problem.length>60 ? "..." : "");
-    const sm = document.createElement("small"); sm.textContent = "Disimpan pada : " + item.date;
+    const s = document.createElement("strong"); s.textContent = item.brand + ": " + String(item.problem || "").slice(0,60) + (String(item.problem || "").length>60 ? "..." : "");
+    const sm = document.createElement("small"); sm.textContent = formatSummary(normalize(item)) + " · " + item.date;
     info.append(s, sm);
     const acts = document.createElement("div"); acts.className = "row";
     const l = document.createElement("button"); l.className = "btn small"; l.type = "button"; l.textContent = "Muat"; l.onclick = ()=>loadData(item.id);
@@ -654,7 +756,7 @@ function renderSaved(){
 function resetAll(){
   if(!confirm("Hapus semua isian dan prompt? Data yang sudah disimpan tidak ikut terhapus.")) return;
   state = Object.assign({}, EMPTY);
-  syncFields(); renderBrands(); renderExamples(); renderStyle(); renderScript(); autosave(); say("Semua isian sudah dihapus.");
+  syncFields(); renderBrands(); renderExamples(); renderStyle(); renderScript(); renderFormat(); autosave(); say("Semua isian sudah dihapus.");
 }
 
 /* --- Sinkron kolom teks dengan state --- */
@@ -664,7 +766,7 @@ function syncFields(){
   $("extra").value = state.extra;
   $("output").value = state.output;
 }
-function say(msg){ $("status").textContent = msg; }
+function say(msg){ $("status").textContent = msg; $("copyStatus").textContent = msg; }
 
 /* --- Mode terang/gelap (default terang) --- */
 function applyTheme(t){
@@ -676,14 +778,14 @@ function applyTheme(t){
 /* =========================================================
    8. INISIALISASI
 ========================================================== */
-state = Object.assign(state, read(KEY_STATE, {}));
+state = normalize(read(KEY_STATE, {}));
 if(!BRANDS[state.brand]) state.brand = brandNames[0];
 /* Migrasi dari versi lama: pilihan "tulis sendiri" dipindah ke kolom teks */
 if(state.problem === CUSTOM) state.problem = state.problemCustom || "";
 if(state.solution === CUSTOM) state.solution = state.solutionCustom || "";
 
 applyTheme(read(KEY_THEME, "light"));
-syncFields(); renderBrands(); renderExamples(); renderStyle(); renderScript(); renderSaved();
+syncFields(); renderBrands(); renderExamples(); renderStyle(); renderScript(); renderFormat(); renderSaved();
 
 $("themeBtn").onclick = ()=> applyTheme(document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark");
 $("buildBtn").onclick = buildPrompt;
@@ -693,7 +795,11 @@ $("resetBtn").onclick = resetAll;
 
 /* Simpan otomatis saat mengetik */
 [["problemText","problem"],["solutionText","solution"],["styleCustom","styleCustom"],["extra","extra"],["output","output"]].forEach(([id,key])=>{
-  $(id).addEventListener("input", e=>{ state[key] = e.target.value; autosave(); });
+  $(id).addEventListener("input", e=>{ state[key] = e.target.value; if(key === "output") autosave(); else changed(); });
+});
+$("messageStage").onchange = e => { state.messageStage = e.target.value; updateStage(); changed(); };
+[["videoDuration","videoDuration"],["slideCount","slideCount"],["followupNumber","followupNumber"],["conversationContext","conversationContext"]].forEach(([id,key]) => {
+  $(id).addEventListener("input", e => { state[key] = e.target.value; changed(); });
 });
 </script>
 </body>
